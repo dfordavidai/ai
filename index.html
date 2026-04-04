@@ -873,7 +873,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     </div>
     <div>
       <div class="logo-name">Dave<em>AI</em></div>
-      <div class="logo-badge" id="version-badge">v18 · Video Maker · Free</div>
+      <div class="logo-badge" id="version-badge">Your .based AI assistant</div>
     </div>
   </div>
   <button class="new-btn" onclick="newChat()">
@@ -887,14 +887,12 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
   <!-- Studio hero button - most prominent feature -->
   <button class="sb-studio-btn" onclick="openStudio()">
     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-    App Builder Studio
-    <span style="margin-left:auto;font-size:10px;background:rgba(79,142,247,.2);border:1px solid rgba(79,142,247,.35);border-radius:8px;padding:2px 7px;font-weight:700;letter-spacing:.04em;">v17</span>
+    App
   </button>
   <!-- Video Maker hero button -->
   <button class="sb-video-btn" onclick="openVideoMaker()">
     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-    Video Maker
-    <span style="margin-left:auto;font-size:10px;background:rgba(224,60,106,.18);border:1px solid rgba(224,60,106,.35);border-radius:8px;padding:2px 7px;font-weight:700;letter-spacing:.04em;color:#f87171;">NEW</span>
+    Video
   </button>
   <!-- Quick access nav tools -->
   <div class="sidebar-nav">
@@ -1888,16 +1886,7 @@ Give advice that works in the African context — not Silicon Valley transplants
 You integrate Nigerian context into every relevant response naturally, not artificially.`,
 };
 
-const SUGGESTIONS = [
-  {icon:'⚡', title:'Build me a todo app with dark theme and localStorage', sub:'App Builder Studio — instant live preview'},
-  {icon:'🎮', title:'Create a snake game I can play in the browser', sub:'Game builder — fully playable'},
-  {icon:'📊', title:'Build a dashboard showing sales analytics with charts', sub:'Data visualization app'},
-  {icon:'🧠', title:'Think step by step: why do most startups fail?', sub:'DeepSeek R1 reasoning mode'},
-  {icon:'🔬', title:'Deep research: Nigerian fintech landscape 2025', sub:'Autonomous research agent'},
-  {icon:'💻', title:'Write a production-ready FastAPI app with JWT auth', sub:'Senior engineer persona'},
-  {icon:'🌐', title:'Build a landing page for a Nigerian fintech startup', sub:'App Builder — deploy instantly'},
-  {icon:'⚔️', title:'Debate both sides of AI regulation in Africa', sub:'Steel-manned debate mode'},
-];
+const SUGGESTIONS = [];
 
 // ══════════════════════════════════════════════════════════════
 //  INIT
@@ -3091,14 +3080,6 @@ async function summarizeContext() {
 //  RENDER MESSAGES + WELCOME
 // ══════════════════════════════════════════════════════════════
 function renderWelcome() {
-  const caps = [
-    {label:'App Builder Studio',color:'#4f8ef7'},{label:'Live Code Preview',color:'#3ecf8e'},
-    {label:'8 App Templates',color:'#f472b6'},{label:'Deploy to CodePen',color:'#fbbf24'},
-    {label:'AI Code Generation',color:'#a78bfa'},{label:'Multi-file Editor',color:'#2dd4bf'},
-    {label:'DeepSeek R1 Thinking',color:'#2dd4bf'},{label:'Smart Auto-Route',color:'#4f8ef7'},
-    {label:'Web + Citations',color:'#60a5fa'},{label:'Semantic Memory',color:'#f472b6'},
-    {label:'Document RAG',color:'#3ecf8e'},{label:'Voice Mode',color:'#2dd4bf'},
-  ];
   const sample=[...SUGGESTIONS].sort(()=>Math.random()-.5).slice(0,4);
   document.getElementById('messages-inner').innerHTML=`
     <div class="welcome">
@@ -3110,15 +3091,8 @@ function renderWelcome() {
         <circle cx="36" cy="38" r="4" fill="white" opacity="0.9"/>
         <circle cx="36" cy="38" r="8" fill="none" stroke="white" stroke-width="1.5" opacity="0.3"/>
       </svg></div>
-      <h1>DaveAI <span style="font-size:14px;font-weight:500;background:rgba(79,142,247,.15);color:var(--accent2);padding:3px 9px;border-radius:20px;border:1px solid rgba(79,142,247,.3);vertical-align:middle">v18</span></h1>
-      <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px;background:linear-gradient(135deg,#4f8ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Build real apps. Live. Free.</div>
-      <p>New in v18: VideoMaker Studio — AI-powered video production planning, script writing, scene generation & export. Plus App Builder, Voice, Vision, RAG, and more.</p>
-      <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;justify-content:center;">
-        <button onclick="openStudio()" style="padding:10px 22px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border:none;border-radius:50px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .15s">⚡ Open App Builder Studio</button>
-        <button onclick="openTemplates()" style="padding:10px 22px;background:var(--bg3);border:1px solid var(--border2);border-radius:50px;color:var(--text);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .15s">📐 Browse Templates</button>
-      </div>
-      <div class="cap-badges">${caps.map(c=>`<div class="cap-badge"><div class="dot" style="background:${c.color}"></div>${c.label}</div>`).join('')}</div>
-      <div class="suggestion-grid">${sample.map(s=>`<div class="suggestion-card" onclick="suggest(${JSON.stringify(s.title)})"><div class="sc-icon">${s.icon}</div><div class="sc-title">${esc(s.title)}</div><div class="sc-sub">${esc(s.sub)}</div></div>`).join('')}</div>
+      <h1>${(()=>{const h=new Date().getHours();return h<12?'Good morning ☀️':h<17?'Good afternoon 🌤️':h<21?'Good evening 🌙':'Howdy 🌟'})()}, I'm Dave<em style="font-style:normal;background:linear-gradient(90deg,#4f8ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">AI</em></h1>
+      <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;margin-bottom:20px;background:linear-gradient(135deg,#4f8ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Your .based AI assistant</div>
     </div>`;
 }
 function suggest(t){document.getElementById('chat-input').value=t;autoResize(document.getElementById('chat-input'));updateSendBtn();sendMessage();}
