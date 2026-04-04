@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -579,6 +578,13 @@ body.light{
   .sidebar.open{left:0;}
   .canvas-pane{display:none;}
 }
+/* ── DESKTOP SIDEBAR COLLAPSE ── */
+.sidebar{transition:width .25s ease, min-width .25s ease, transform .25s ease;}
+.sidebar.collapsed{width:0!important;min-width:0!important;overflow:hidden;border-right:none;}
+.sidebar-toggle-btn{background:none;border:none;color:var(--text2);cursor:pointer;padding:5px;border-radius:var(--r-xs);transition:background .12s;display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0;}
+.sidebar-toggle-btn:hover{background:var(--bg3);color:var(--text);}
+/* DaveAI logo name bold h2 style */
+.logo-name{font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1.1;}
 
 /* ── TIMELINE VIEW (Feature 8) ── */
 .timeline-group{margin-bottom:6px;}
@@ -1156,15 +1162,17 @@ body.light{
             <stop offset="1" stop-color="#7c3aed"/>
           </linearGradient>
         </defs>
-        <!-- Abstract D mark: bold arc -->
         <path d="M11 9h5.5C20.9 9 24 12.1 24 17.5S20.9 26 16.5 26H11V9Z" fill="none" stroke="white" stroke-width="2.2" stroke-linejoin="round"/>
         <circle cx="16.5" cy="17.5" r="1.8" fill="white" opacity="0.9"/>
       </svg>
     </div>
-    <div>
-      <div class="logo-name">Dave<em>AI</em></div>
+    <div style="flex:1;">
+      <h2 class="logo-name">Dave<em>AI</em></h2>
       <div class="logo-badge" id="version-badge">Your .based AI assistant</div>
     </div>
+    <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Collapse sidebar">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
   </div>
   <button class="new-btn" onclick="newChat()">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1223,8 +1231,8 @@ body.light{
 <main class="main" id="main-area">
   <div class="topbar">
     <div class="topbar-left">
-      <button class="menu-btn" onclick="toggleSidebar()">
-        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <button id="sidebar-reopen-btn" onclick="toggleSidebar()" title="Open sidebar" style="display:none;background:var(--bg2);border:1px solid var(--border2);color:var(--text2);cursor:pointer;padding:6px 8px;border-radius:var(--r-sm);align-items:center;justify-content:center;transition:background .12s;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <div class="model-pill" onclick="toggleModelDD()" id="model-pill">
         <div class="model-dot"></div>
@@ -1289,15 +1297,11 @@ body.light{
               Agent
             </button>
             <div class="tool-separator"></div>
-            <button class="tool-btn" id="tb-debate" onclick="toggleTool('debate')" title="Debate mode">⚔️ Debate</button>
-            <button class="tool-btn" id="tb-translate" onclick="openPanel('translate')" title="Translate">🌐 Translate</button>
             <button class="tool-btn" id="tb-chain" onclick="toggleTool('chain')" title="Prompt chaining">⛓️ Chain</button>
-            <button class="tool-btn" onclick="openFormatMenu()" title="Re-format last response">🎨 Format</button>
-            <button class="tool-btn" onclick="openStudio()" title="Open App Builder Studio" style="color:var(--accent2)">
-              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              Studio
+            <button class="tool-btn" onclick="toggleVoice()" title="Voice Record — click to record your voice">
+              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              Voice Record
             </button>
-            <div class="tool-separator"></div>
             <label class="tool-btn" title="Attach files">
               <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               Attach
@@ -1319,7 +1323,6 @@ body.light{
             </div>
           </div>
           <div class="input-footer">
-            <span class="input-hint">⏎ send &nbsp;·&nbsp; ⇧⏎ new line &nbsp;·&nbsp; ⌘K commands</span>
             <span id="token-disp" style="font-size:11px;color:var(--text3)"></span>
           </div>
         </div>
@@ -3355,8 +3358,8 @@ async function sendMessage() {
     currentConvoId = 'c_'+Date.now();
     conversations.push({id:currentConvoId, title:rawText.slice(0,50)||'Conversation', messages:[], created:Date.now()});
     renderChatList();
-    generateChatTitle(rawText);
   }
+  const isFirstMessage = messages.length === 0;
   updateTopbarTitle(conversations.find(x=>x.id===currentConvoId)?.title||'');
 
   const userMsg = buildUserMsg(rawText);
@@ -3558,6 +3561,7 @@ async function sendMessage() {
   if(streamEl) streamEl.id=`msg-${streamIdx}`;
   isStreaming=false; setStatus('',false); updateSendBtn();
   saveConvo(); updateContextBar();
+  if(isFirstMessage) generateChatTitle(rawText, messages[streamIdx]?.content||'');
   if(settings.autoSumm&&tokenCount>settings.ctxThreshold) summarizeContext();
 }
 
@@ -4043,18 +4047,21 @@ function updateTopbarTitle(title) {
   if (el) el.textContent = title || '';
 }
 
-async function generateChatTitle(userText) {
+async function generateChatTitle(userText, aiResponse) {
   if (!settings.groqKey) return;
   try {
+    const context = `User asked: "${userText.slice(0,300)}"\n\nAI responded about: "${(aiResponse||'').slice(0,300)}"`;
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method:'POST', headers:{'Authorization':'Bearer '+settings.groqKey,'Content-Type':'application/json'},
-      body: JSON.stringify({model:'llama-3.1-8b-instant', max_tokens:12, temperature:0.4,
-        messages:[{role:'system',content:'Generate a short 3-5 word title for this conversation. Reply with ONLY the title, no quotes, no punctuation at end.'},
-                  {role:'user',content:userText.slice(0,200)}]})
+      body: JSON.stringify({model:'llama-3.1-8b-instant', max_tokens:15, temperature:0.5,
+        messages:[
+          {role:'system',content:'You generate short, descriptive conversation titles like ChatGPT or Claude do. Based on the user question and AI response, write a 3-6 word title that captures the topic and angle of the conversation. Make it specific and interesting — not generic. No quotes, no punctuation at end, title case.'},
+          {role:'user',content:context}
+        ]})
     });
     const d = await res.json();
-    const title = d.choices?.[0]?.message?.content?.trim();
-    if (title) {
+    const title = d.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g,'');
+    if (title && title.length > 2) {
       updateTopbarTitle(title);
       const c = conversations.find(x=>x.id===currentConvoId);
       if (c) { c.title = title; saveConvo(); renderChatList(); }
@@ -4276,7 +4283,17 @@ function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMe
 function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,180)+'px';}
 function updateSendBtn(){document.getElementById('send-btn').disabled=(!document.getElementById('chat-input').value.trim()&&!attachments.length)||isStreaming;}
 function scrollBottom(){const w=document.getElementById('messages-wrap');w.scrollTop=w.scrollHeight;}
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
+function toggleSidebar(){
+  const sb = document.getElementById('sidebar');
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) {
+    sb.classList.toggle('open');
+  } else {
+    sb.classList.toggle('collapsed');
+    const reopenBtn = document.getElementById('sidebar-reopen-btn');
+    if (reopenBtn) reopenBtn.style.display = sb.classList.contains('collapsed') ? 'flex' : 'none';
+  }
+}
 function setStatus(txt,loading){
   const pill = document.getElementById('status-pill');
   if(pill) pill.style.display = (loading || txt) ? 'flex' : 'none';
