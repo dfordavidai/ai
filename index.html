@@ -95,7 +95,7 @@ body.light{
   --text:#1a1e2a;--text2:#4a5168;--text3:#8a92a6;
 }
 /* ── TOPBAR ── */
-.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;padding-bottom:60px;}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;}
 .topbar{height:54px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;z-index:5;}
 .topbar-left{display:flex;align-items:center;gap:8px;}
 .menu-btn{background:none;border:none;color:var(--text2);cursor:pointer;padding:6px;border-radius:var(--r-xs);transition:background .12s;display:flex;}
@@ -465,7 +465,7 @@ body.light{
 .voice-close-btn:hover{background:var(--bg4);color:var(--text);}
 
 /* ── INPUT AREA ── */
-.input-area{padding:8px 18px 14px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;}
+.input-area{padding:8px 18px 14px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;margin-top:-8px;}
 .input-wrap{max-width:860px;margin:0 auto;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;transition:border-color .2s,box-shadow .2s;overflow:hidden;}
 .input-wrap:focus-within{border-color:rgba(79,142,247,.4);box-shadow:0 0 0 3px rgba(79,142,247,.07);}
 .input-attachments{padding:8px 12px 0;display:flex;flex-wrap:wrap;gap:6px;}
@@ -1269,7 +1269,7 @@ body.light{
   </div>
 
   <!-- Canvas layout wraps both chat and artifact pane -->
-  <div id="canvas-layout" style="flex:1;display:flex;overflow:hidden;">
+  <div id="canvas-layout" style="flex:1;display:flex;overflow:hidden;max-height:calc(100vh - 54px - 120px);">
     <div id="chat-side" style="flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;">
       <div class="custominst-banner" id="custominst-banner" style="display:none">
         <div class="custominst-dot"></div>
