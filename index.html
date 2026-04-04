@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -574,6 +575,8 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 /* ── PWA INSTALL BANNER (Feature 10) ── */
 .pwa-banner{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--accent);border-radius:12px;padding:10px 16px;align-items:center;gap:10px;z-index:400;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:panelIn .3s ease;display:none;}
 .pwa-banner.show{display:flex;}
+.offline-bar{position:fixed;top:0;left:0;right:0;background:#f87171;color:#fff;text-align:center;padding:7px 16px;font-size:13px;font-weight:600;z-index:500;display:none;letter-spacing:.02em;}
+.offline-bar.show{display:block;}
 .pwa-banner-text{font-size:13px;color:var(--text);}
 .pwa-install-btn{padding:6px 14px;background:var(--accent);border:none;border-radius:8px;color:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;}
 .pwa-dismiss-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 5px;}
@@ -1009,6 +1012,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
               Studio
             </button>
             <div class="tool-separator"></div>
+            <label class="tool-btn" title="Attach files">
               <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               Attach
               <input type="file" id="file-input" accept="image/*,.pdf,.txt,.md,.csv,.json,.js,.py,.html,.css,.ts" multiple style="display:none" onchange="handleFileAttach(this)">
@@ -1486,7 +1490,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
   </div>
 </div>
 
-<div class="offline-bar" id="offline-bar"></div>
+<div class="offline-bar" id="offline-bar">📡 You are offline — some features may be unavailable</div>
 
 <!-- ═══ APP BUILDER STUDIO ═══ -->
 <div class="studio-overlay" id="studio-overlay">
@@ -3106,9 +3110,9 @@ function renderWelcome() {
         <circle cx="36" cy="38" r="4" fill="white" opacity="0.9"/>
         <circle cx="36" cy="38" r="8" fill="none" stroke="white" stroke-width="1.5" opacity="0.3"/>
       </svg></div>
-      <h1>DaveAI <span style="font-size:14px;font-weight:500;background:rgba(79,142,247,.15);color:var(--accent2);padding:3px 9px;border-radius:20px;border:1px solid rgba(79,142,247,.3);vertical-align:middle">v16</span></h1>
+      <h1>DaveAI <span style="font-size:14px;font-weight:500;background:rgba(79,142,247,.15);color:var(--accent2);padding:3px 9px;border-radius:20px;border:1px solid rgba(79,142,247,.3);vertical-align:middle">v18</span></h1>
       <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px;background:linear-gradient(135deg,#4f8ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Build real apps. Live. Free.</div>
-      <p>New in v16: App Builder Studio — describe any app, DaveAI builds it, you see it live, then deploy instantly to CodePen, JSFiddle, or Netlify.</p>
+      <p>New in v18: VideoMaker Studio — AI-powered video production planning, script writing, scene generation & export. Plus App Builder, Voice, Vision, RAG, and more.</p>
       <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;justify-content:center;">
         <button onclick="openStudio()" style="padding:10px 22px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border:none;border-radius:50px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .15s">⚡ Open App Builder Studio</button>
         <button onclick="openTemplates()" style="padding:10px 22px;background:var(--bg3);border:1px solid var(--border2);border-radius:50px;color:var(--text);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .15s">📐 Browse Templates</button>
@@ -3452,8 +3456,10 @@ function openPanel(name){
 function closePanel(name){const el=document.getElementById(name+'-overlay');if(el)el.classList.remove('open');}
 function oClick(e,name){if(e.target===e.currentTarget)closePanel(name);}
 function switchTab(name, btn){
-  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.ptab-content').forEach(t=>t.classList.remove('active'));
+  const panel = btn ? btn.closest('.panel') : null;
+  const scope = panel || document;
+  scope.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+  scope.querySelectorAll('.ptab-content').forEach(t=>t.classList.remove('active'));
   if (btn) btn.classList.add('active');
   document.getElementById('tab-'+name)?.classList.add('active');
 }
@@ -3804,7 +3810,7 @@ document.addEventListener('keydown', e => {
 });
 
 // ══════════════════════════════════════════════════════════════
-//  APP BUILDER STUDIO v16
+//  APP BUILDER STUDIO v18
 // ══════════════════════════════════════════════════════════════
 
 // Studio state
@@ -4814,7 +4820,7 @@ Dark theme, modern design, fully functional JavaScript.`,
 
 // Add "Build App" button to toolbar
 document.addEventListener('DOMContentLoaded', () => {
-  // Already handled in toolbar
+  init();
 });
 
 // Keyboard shortcut: Ctrl+Shift+B = open studio
@@ -4822,6 +4828,8 @@ document.addEventListener('keydown', e => {
   if ((e.metaKey||e.ctrlKey) && e.shiftKey && e.key==='B') { e.preventDefault(); openStudio(); }
 });
 
+
+</script>
 
 <!-- ═══════════════════════════════════════════════════════
      VIDEO MAKER STUDIO — DaveAI v18
