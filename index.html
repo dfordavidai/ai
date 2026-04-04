@@ -136,8 +136,7 @@ body.light{
 /* ── MESSAGES ── */
 .messages-wrap{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
 .messages-inner{width:100%;max-width:860px;margin:0 auto;padding:28px 24px 12px;}
-/* Welcome screen: shrink layout so input box floats higher */
-#canvas-layout.welcome-mode{max-height:calc(100vh - 54px - 130px);}
+#chat-side.welcome-mode{max-height:calc(100vh - 54px - 140px);}
 
 /* ── CANVAS MODE ── */
 .canvas-layout{display:flex;height:100%;overflow:hidden;}
@@ -3889,7 +3888,7 @@ async function summarizeContext() {
 //  RENDER MESSAGES + WELCOME
 // ══════════════════════════════════════════════════════════════
 function renderWelcome() {
-  document.getElementById('canvas-layout').classList.add('welcome-mode');
+  document.getElementById('chat-side').classList.add('welcome-mode');
   const sample=[...SUGGESTIONS].sort(()=>Math.random()-.5).slice(0,4);
   document.getElementById('messages-inner').innerHTML=`
     <div class="welcome">
@@ -3908,7 +3907,7 @@ function renderWelcome() {
 function suggest(t){document.getElementById('chat-input').value=t;autoResize(document.getElementById('chat-input'));updateSendBtn();sendMessage();}
 
 function renderMessages() {
-  document.getElementById('canvas-layout').classList.remove('welcome-mode');
+  document.getElementById('chat-side').classList.remove('welcome-mode');
   if(!messages.length){renderWelcome();return;}
   document.getElementById('messages-inner').innerHTML=messages.map((m,i)=>buildMsgHTML(m,i)).join('');
   document.querySelectorAll('pre code').forEach(el=>{if(!el.classList.contains('hljs'))hljs.highlightElement(el);});
