@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DaveAI v26</title>
+<title>DaveAI v27</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <!-- PWA Manifest (Feature 10) -->
@@ -2804,6 +2803,12 @@ let settings = Object.assign({
   autoMem:true, ragActive:false, transContext:true, // Bug fix: persist toggle states
 }, JSON.parse(localStorage.getItem('daveai_s10') || '{}'));
 
+// ── v27 MIGRATION: fix corrupted model='auto' from old saves ──
+if (settings.model === 'auto' || !settings.model) {
+  settings.model = 'llama-3.3-70b-versatile';
+  localStorage.setItem('daveai_s10', JSON.stringify(settings));
+}
+
 let conversations = JSON.parse(localStorage.getItem('daveai_convos10') || '[]');
 let projects = JSON.parse(localStorage.getItem('daveai_projs10') || '[]');
 let savedPrompts = JSON.parse(localStorage.getItem('daveai_prompts10') || JSON.stringify(DEFAULT_PROMPTS()));
@@ -3007,7 +3012,7 @@ function init() {
 //  AUTO-ROUTE MODEL SELECTION v15 — Claude-style intelligent routing
 // ══════════════════════════════════════════════════════════════
 function autoRouteModel(text, hasImages) {
-  if (!settings.autoRoute) return settings.model === 'auto' ? 'llama-3.3-70b-versatile' : settings.model;
+  if (!settings.autoRoute) return (settings.model === 'auto' || !settings.model) ? 'llama-3.3-70b-versatile' : settings.model;
   // Vision tasks
   if (hasImages) return 'llama-3.2-11b-vision-preview';
   // Hard reasoning: math, logic, analysis, philosophy, science, debate
@@ -3862,6 +3867,10 @@ async function sendMessage() {
       finalText = parsed.answer || full;
       messages[streamIdx].thinking = parsed.thinking || thinking;
     }
+    // BUG FIX: Empty response — show clear error instead of blank
+    if (!finalText || !finalText.trim()) {
+      finalText = '⚠️ **No response received.** The model returned an empty reply. This can happen due to a silent rate limit hit, model overload, or token limit. Please try again.';
+    }
     messages[streamIdx].content = finalText;
     if(settings.autoPlayVoice&&finalText) speakText(finalText.slice(0,400));
     detectArtifact(finalText);
@@ -3873,25 +3882,35 @@ async function sendMessage() {
         const parsed = parseReasoningTags(full);
         if (parsed.thinking) {
           finalHtml = `<div class="thinking-box" style="cursor:pointer" onclick="this.querySelector('.think-body').style.display=this.querySelector('.think-body').style.display==='none'?'block':'none'"><strong>🧠 Reasoning</strong> <span style="font-size:11px;color:var(--text3)">(click to expand)</span><div class="think-body" style="display:none;margin-top:8px;font-size:12px;color:var(--text3)">${parseMarkdown(parsed.thinking)}</div></div>`;
-          finalHtml += parseMarkdown(parsed.answer);
+          finalHtml += parseMarkdown(parsed.answer || finalText);
         } else {
-          finalHtml = parseMarkdown(parsed.answer || full);
+          finalHtml = parseMarkdown(parsed.answer || finalText);
         }
       } else {
-        finalHtml = parseMarkdown(full);
+        // BUG FIX: use finalText (which has the empty-response error if needed), not bare `full`
+        finalHtml = parseMarkdown(finalText);
       }
       if(lastSearchResults.length) finalHtml=renderSearchCitations(finalHtml);
       finalStreamEl.innerHTML=finalHtml;
       finalStreamEl.querySelectorAll('pre code').forEach(el=>{if(!el.classList.contains('hljs'))hljs.highlightElement(el);});
+    } else {
+      // BUG FIX: stream-content was wiped — force full re-render so response is always visible
+      renderMessages();
     }
     // Auto-extract memory
     autoExtractMemory(rawText, finalText);
     // Background notification
     notifyIfBackground(settings.daveName + ' replied', finalText.slice(0,100).replace(/[#*`]/g,''));
   } catch(err) {
-    messages[streamIdx].content = `⚠️ **Error:** ${err.message}\n\nCheck your Groq API key in Settings. Get a free key at groq.com`;
+    const _errMsg = `⚠️ **Error:** ${err.message}\n\nCheck your Groq API key in Settings. Get a free key at groq.com`;
+    messages[streamIdx].content = _errMsg;
     const errStreamEl=document.getElementById('stream-content');
-    if(errStreamEl) errStreamEl.innerHTML=parseMarkdown(messages[streamIdx].content);
+    if(errStreamEl) {
+      errStreamEl.innerHTML=parseMarkdown(_errMsg);
+    } else {
+      // BUG FIX: stream-content wiped — force full re-render so error is always visible
+      renderMessages();
+    }
   }
 
   const streamEl=document.getElementById('msg-stream');
@@ -3956,7 +3975,7 @@ function buildSystemPrompt() {
   }
 
   // Inject reasoning instruction when using DeepSeek R1 or QwQ
-  const routedM = settings.model === 'auto' ? 'llama-3.3-70b-versatile' : settings.model;
+  const routedM = (settings.model === 'auto' || !settings.model) ? 'llama-3.3-70b-versatile' : settings.model;
   if (routedM.includes('deepseek-r1') || routedM.includes('qwq')) {
     sys += `\n\n## Reasoning Mode\nThink through this carefully before answering. Use your extended reasoning to explore the problem space before giving the final answer.`;
   }
@@ -4539,7 +4558,10 @@ function loadSettingsUI(){
   const serperEl=document.getElementById('api-serper'); if(serperEl) serperEl.value=settings.serperKey||'';
   const tavilyEl=document.getElementById('api-tavily'); if(tavilyEl) tavilyEl.value=settings.tavilyKey||'';
   selectSearchProvider(settings.searchProvider||'brave');
-  document.getElementById('settings-model').value=settings.model;
+  const _modelSel = document.getElementById('settings-model');
+  const _safeModel = (settings.model === 'auto' || !settings.model) ? 'llama-3.3-70b-versatile' : settings.model;
+  if ([..._modelSel.options].some(o => o.value === _safeModel)) _modelSel.value = _safeModel;
+  else _modelSel.value = 'llama-3.3-70b-versatile';
   document.getElementById('t-slider').value=settings.temperature;
   document.getElementById('t-val').textContent=parseFloat(settings.temperature).toFixed(2);
   document.getElementById('max-tok').value=settings.maxTokens;
@@ -4570,7 +4592,7 @@ function saveSettings(){
   settings.braveKey=document.getElementById('api-brave').value.trim();
   const serperEl=document.getElementById('api-serper'); if(serperEl) settings.serperKey=serperEl.value.trim();
   const tavilyEl=document.getElementById('api-tavily'); if(tavilyEl) settings.tavilyKey=tavilyEl.value.trim();
-  settings.model=document.getElementById('settings-model').value;
+  settings.model=document.getElementById('settings-model').value || 'llama-3.3-70b-versatile';
   settings.temperature=document.getElementById('t-slider').value;
   settings.maxTokens=document.getElementById('max-tok').value;
   settings.ctxThreshold=parseInt(document.getElementById('ctx-threshold').value);
@@ -10320,22 +10342,41 @@ sendMessage = async function() {
     // Final render
     let finalText = full;
     if (isReasonerModel) { const parsed = parseReasoningTags(full); finalText = parsed.answer || full; messages[streamIdx].thinking = parsed.thinking || ''; }
+
+    // BUG FIX: If the API returned 200 but empty content, show a clear error instead of blank
+    if (!finalText || !finalText.trim()) {
+      finalText = '⚠️ **No response received.** The model returned an empty reply. This can happen when:\n- The model\'s token limit was reached mid-response\n- The API rate limit was hit silently\n- The selected model is temporarily unavailable\n\nTry sending your message again, or switch to a different model.';
+    }
+
     messages[streamIdx].content = finalText;
     if (settings.autoPlayVoice && finalText) speakText(finalText.slice(0, 400));
     detectArtifact(finalText);
     const finalEl = document.getElementById('stream-content');
     if (finalEl) {
-      let finalHtml = isReasonerModel ? (() => { const p = parseReasoningTags(full); return (p.thinking ? `<div class="thinking-box" style="cursor:pointer" onclick="this.querySelector('.think-body').style.display=this.querySelector('.think-body').style.display==='none'?'block':'none'"><strong>🧠 Reasoning</strong> <span style="font-size:11px;color:var(--text3)">(click)</span><div class="think-body" style="display:none;margin-top:8px;font-size:12px;color:var(--text3)">${parseMarkdown(p.thinking)}</div></div>` : '') + parseMarkdown(p.answer || full); })() : parseMarkdown(full);
+      let finalHtml = isReasonerModel ? (() => { const p = parseReasoningTags(full); return (p.thinking ? `<div class="thinking-box" style="cursor:pointer" onclick="this.querySelector('.think-body').style.display=this.querySelector('.think-body').style.display==='none'?'block':'none'"><strong>🧠 Reasoning</strong> <span style="font-size:11px;color:var(--text3)">(click)</span><div class="think-body" style="display:none;margin-top:8px;font-size:12px;color:var(--text3)">${parseMarkdown(p.thinking)}</div></div>` : '') + parseMarkdown(p.answer || full); })() : parseMarkdown(finalText);
       if (lastSearchResults.length) finalHtml = renderSearchCitations(finalHtml);
       finalEl.innerHTML = finalHtml;
       finalEl.querySelectorAll('pre code').forEach(el => { if (!el.classList.contains('hljs')) hljs.highlightElement(el); });
+    } else {
+      // BUG FIX: stream-content element was lost (DOM wiped) — force a full re-render
+      renderMessages();
     }
     autoExtractMemory(rawText, finalText);
     notifyIfBackground(settings.daveName + ' replied', finalText.slice(0, 100).replace(/[#*`]/g, ''));
   } catch(err) {
-    messages[streamIdx].content = `⚠️ **Error:** ${err.message}\n\nCheck your provider settings — click the provider pill in the toolbar.`;
+    // BUG FIX: Always set the error content in messages[] first
+    const errorMsg = `⚠️ **Error:** ${err.message}\n\nThis could be a rate limit, invalid API key, or network issue. Check your provider settings — click the ⚡ Groq pill in the top-left toolbar.`;
+    messages[streamIdx].content = errorMsg;
+
+    // Try to update the streaming div directly first (fastest)
     const errEl = document.getElementById('stream-content');
-    if (errEl) errEl.innerHTML = parseMarkdown(messages[streamIdx].content);
+    if (errEl) {
+      errEl.innerHTML = parseMarkdown(errorMsg);
+    } else {
+      // BUG FIX: If stream-content is gone (DOM wiped mid-stream), force full re-render
+      // This ensures the error always appears no matter what
+      renderMessages();
+    }
   }
 
   const streamEl = document.getElementById('msg-stream');
