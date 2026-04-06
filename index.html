@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -529,6 +530,21 @@ body.light{
 .send-btn{width:36px;height:36px;border-radius:9px;flex-shrink:0;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,transform .1s,opacity .15s;color:#fff;}
 .send-btn:hover{background:var(--accent2);transform:scale(1.04);}
 .send-btn:disabled{opacity:.3;cursor:default;transform:none;}
+.input-model-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px 3px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--text2);transition:border-color .15s,background .15s;white-space:nowrap;position:relative;}
+.input-model-pill:hover{border-color:var(--accent);background:var(--bg4);color:var(--text);}
+.input-model-pill .imp-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.input-model-pill .imp-chevron{opacity:.5;font-size:10px;margin-left:1px;}
+.input-model-dd{position:absolute;bottom:calc(100% + 6px);left:0;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:6px;min-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.28);z-index:999;display:none;}
+.input-model-dd.open{display:block;}
+.input-model-dd .imd-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .12s;}
+.input-model-dd .imd-item:hover{background:var(--bg3);}
+.input-model-dd .imd-item.sel{background:var(--accent-dim);}
+.input-model-dd .imd-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.input-model-dd .imd-name{font-size:13px;font-weight:600;color:var(--text);}
+.input-model-dd .imd-desc{font-size:11px;color:var(--text3);margin-top:1px;}
+.input-model-dd .imd-check{margin-left:auto;color:var(--accent);display:none;}
+.input-model-dd .imd-item.sel .imd-check{display:block;}
+.input-model-dd .imd-badge{font-size:10px;padding:1px 5px;border-radius:4px;background:rgba(79,142,247,.15);color:var(--accent);border:1px solid rgba(79,142,247,.25);margin-left:4px;}
 .input-footer{padding:0 12px 9px;display:flex;align-items:center;justify-content:space-between;}
 .input-hint{font-size:11px;color:var(--text3);}
 
@@ -1985,7 +2001,7 @@ body.light{
           </div>
           <div class="textarea-row">
             <textarea id="chat-input" placeholder="Ask anything…" rows="1"
-              onkeydown="handleKey(event)" oninput="autoResize(this);updateSendBtn()" onfocus="updateSendBtn()"></textarea>
+              onkeydown="handleKey(event)" oninput="autoResize(this);updateSendBtn()"></textarea>
             <div class="input-btns">
               <div class="voice-wave" id="voice-wave"><span></span><span></span><span></span><span></span><span></span></div>
               <label class="input-attach-btn" title="Attach files">
@@ -1995,12 +2011,19 @@ body.light{
               <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="Voice input">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
               </button>
-              <button class="send-btn" id="send-btn" onclick="sendMessage()">
+              <button class="send-btn" id="send-btn" onclick="sendMessage()" disabled>
                 <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
             </div>
           </div>
-          <div class="input-footer">
+          <div class="input-footer" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <!-- Inline model selector -->
+            <div class="input-model-pill" id="input-model-pill" onclick="toggleInputModelDD(event)" title="Switch model">
+              <div class="imp-dot" id="imp-dot"></div>
+              <span id="imp-name">DaveAI</span>
+              <span class="imp-chevron">▾</span>
+              <div class="input-model-dd" id="input-model-dd"></div>
+            </div>
             <span id="token-disp" style="font-size:11px;color:var(--text3)"></span>
           </div>
           <!-- No-key warning banner (shown/hidden by updateSendBtn) -->
@@ -2336,6 +2359,7 @@ body.light{
       <button class="ptab" onclick="switchTab('persona',this)">🎭 Persona</button>
       <button class="ptab" onclick="switchTab('ui',this)">🖥️ Interface</button>
       <button class="ptab" onclick="switchTab('advanced',this)">⚙️ Advanced</button>
+      <button class="ptab" onclick="switchTab('supabase',this)">🗄️ Supabase</button>
     </div>
     <div class="panel-body" style="overflow-y:auto;flex:1;">
       <div class="ptab-content active" id="tab-api">
@@ -2514,6 +2538,79 @@ body.light{
       </div>
 
     </div>
+      <!-- ══ SUPABASE PANEL ══ -->
+      <div class="ptab-content" id="tab-supabase">
+        <div class="sec-head">🗄️ Supabase — Cloud Storage</div>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:16px">Connect Supabase to save all your chats, memories, and settings to the cloud. Works across devices. <a href="https://supabase.com" target="_blank" style="color:var(--accent2)">Get a free account at supabase.com</a></p>
+
+        <div class="field">
+          <label>Supabase Project URL</label>
+          <input type="text" id="sb-url" placeholder="https://xxxx.supabase.co" style="font-size:13px">
+          <div class="field-desc">Found in your Supabase project → Settings → API</div>
+        </div>
+        <div class="field">
+          <label>Supabase Anon Key</label>
+          <input type="password" id="sb-anon-key" placeholder="eyJhbGci…">
+          <div class="field-desc">Your project's public anon key (safe to use client-side)</div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <button class="test-btn" onclick="testSupabase()" style="flex:1">🔌 Test Connection</button>
+          <button class="test-btn" onclick="saveSupabaseSettings()" style="flex:1;background:var(--accent);color:#fff;border-color:var(--accent)">💾 Save & Enable</button>
+        </div>
+        <div id="sb-status" class="api-status idle" style="margin-top:8px">Enter your project URL and anon key</div>
+
+        <div class="divider" style="margin:18px 0"></div>
+        <div class="sec-head">📋 SQL Setup</div>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:10px">Run this SQL in your Supabase SQL Editor to create the required tables:</p>
+        <div style="position:relative">
+          <pre id="sb-sql-block" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:11px;color:var(--text2);overflow-x:auto;white-space:pre;line-height:1.6;max-height:260px;overflow-y:auto">-- Run this in Supabase SQL Editor
+-- Table: conversations
+create table if not exists daveai_conversations (
+  id text primary key,
+  user_id text default 'default',
+  title text,
+  messages jsonb default '[]',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Table: memories
+create table if not exists daveai_memories (
+  id serial primary key,
+  user_id text default 'default',
+  content text,
+  created_at timestamptz default now()
+);
+
+-- Table: settings
+create table if not exists daveai_settings (
+  user_id text primary key default 'default',
+  data jsonb,
+  updated_at timestamptz default now()
+);
+
+-- Enable Row Level Security (optional but recommended)
+alter table daveai_conversations enable row level security;
+alter table daveai_memories enable row level security;
+alter table daveai_settings enable row level security;
+
+-- Allow all operations (simple setup — add auth policies later)
+create policy "Allow all" on daveai_conversations for all using (true) with check (true);
+create policy "Allow all" on daveai_memories for all using (true) with check (true);
+create policy "Allow all" on daveai_settings for all using (true) with check (true);</pre>
+          <button onclick="copySql()" style="position:absolute;top:8px;right:8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:4px 10px;cursor:pointer">📋 Copy</button>
+        </div>
+
+        <div class="divider" style="margin:18px 0"></div>
+        <div class="sec-head">☁️ Sync</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="test-btn" onclick="sbSyncAll()" style="flex:1">⬆️ Push All to Cloud</button>
+          <button class="test-btn" onclick="sbPullAll()" style="flex:1">⬇️ Pull from Cloud</button>
+        </div>
+        <div id="sb-sync-status" style="font-size:12px;color:var(--text3);margin-top:8px;text-align:center"></div>
+      </div>
+
     <!-- ── STICKY SAVE FOOTER ── -->
     <div style="padding:12px 22px 16px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0;">
       <button class="save-btn" onclick="saveSettings()" style="margin:0">💾 Save All Settings</button>
@@ -4113,8 +4210,9 @@ let settings = Object.assign({
 }, (()=>{try{return JSON.parse(localStorage.getItem('daveai_s10')||'{}');}catch(e){localStorage.removeItem('daveai_s10');return{};}})());
 
 // ── v27 MIGRATION: fix corrupted model from old saves ──
-const _HARDCODED_KEY = '';
+const _HARDCODED_KEY = ''; // No hardcoded key — enter via Settings
 if (settings.model === 'auto' || !settings.model) settings.model = 'llama-3.3-70b-versatile';
+// Key comes from localStorage only (set via Settings panel)
 // Always sync key into providerSettings so getActiveKey() never returns empty
 localStorage.setItem('daveai_s10', JSON.stringify(settings));
 // CRITICAL FIX: Pre-populate providerSettings.groq.key from hardcoded key so getActiveKey() works on first load
@@ -4122,7 +4220,7 @@ localStorage.setItem('daveai_s10', JSON.stringify(settings));
   try {
     const _ps = JSON.parse(localStorage.getItem('daveai_providers21') || '{}');
     if (!_ps.groq) _ps.groq = {};
-    if (!_ps.groq.key) _ps.groq.key = settings.groqKey;
+    if (!_ps.groq.key && settings.groqKey) _ps.groq.key = settings.groqKey;
     if (!_ps._active) _ps._active = 'groq';
     localStorage.setItem('daveai_providers21', JSON.stringify(_ps));
   } catch(e) {}
@@ -4437,11 +4535,21 @@ function init() {
     const n = document.getElementById('file-protocol-notice');
     if (n) n.style.display = 'block';
   }
+  // Init inline model pill
+  if (typeof renderInputModelPill === 'function') renderInputModelPill();
   // BUG FIX: Enable send button on load if a key is already saved
+  // Force inject hardcoded key into ALL possible storage locations so button is never blocked
+  (function() {
+    // Sync settings.groqKey into providerSettings on every load
+    if (typeof providerSettings !== 'undefined') {
+      if (!providerSettings.groq) providerSettings.groq = {};
+      if (!providerSettings.groq.key && settings.groqKey) {
+        providerSettings.groq.key = settings.groqKey;
+        localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
+      }
+    }
+  })();
   updateSendBtn();
-  // DEFERRED: re-run after microtask queue clears to catch any async providerSettings sync
-  setTimeout(updateSendBtn, 0);
-  setTimeout(updateSendBtn, 300);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -4496,8 +4604,70 @@ function renderModelDD() {
   }
   document.getElementById('model-name-display').textContent = displayName;
   const subEl = document.getElementById('model-sub-display'); if(subEl) subEl.textContent = '';
+  // Also update the inline input pill
+  if (typeof renderInputModelPill === 'function') renderInputModelPill();
 }
 function toggleModelDD() { document.getElementById('model-dd').classList.toggle('open'); }
+
+// ── Inline input-area model selector ──
+function renderInputModelPill() {
+  const dd = document.getElementById('input-model-dd');
+  const nameEl = document.getElementById('imp-name');
+  const dotEl = document.getElementById('imp-dot');
+  if (!dd || !nameEl) return;
+
+  // Build model list
+  const items = MODELS.map(m => {
+    const isSel = m.id === 'auto' ? settings.autoRoute : (m.id === settings.model && !settings.autoRoute);
+    return `<div class="imd-item${isSel?' sel':''}" onclick="selectInputModel('${m.id}');event.stopPropagation()">
+      <div class="imd-dot" style="background:${m.color}"></div>
+      <div style="flex:1;min-width:0">
+        <div class="imd-name">${m.name}${m.auto?'<span class="imd-badge">✨ Smart</span>':''}${m.reasoner?'<span class="imd-badge" style="background:rgba(45,212,191,.12);color:var(--teal);border-color:rgba(45,212,191,.3)">🧠 Thinks</span>':''}</div>
+        <div class="imd-desc">${m.desc||''}</div>
+      </div>
+      <svg class="imd-check" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>`;
+  }).join('');
+  dd.innerHTML = items;
+
+  // Update pill display
+  const pid = providerSettings._active;
+  let displayName, dotColor;
+  if (settings.autoRoute) {
+    displayName = 'DaveAI'; dotColor = '#4f8ef7';
+  } else if (pid && pid !== 'groq' && typeof PROVIDERS !== 'undefined' && PROVIDERS[pid]) {
+    const provModel = providerSettings[pid]?.model || PROVIDERS[pid].defaultModel || '';
+    displayName = provModel.split('/').pop() || PROVIDERS[pid].name;
+    dotColor = '#a78bfa';
+  } else {
+    const active = MODELS.find(m=>m.id===settings.model) || MODELS[1];
+    displayName = active.name; dotColor = active.color || '#4f8ef7';
+  }
+  nameEl.textContent = displayName;
+  if (dotEl) dotEl.style.background = dotColor;
+}
+
+function toggleInputModelDD(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('input-model-dd');
+  const isOpen = dd.classList.contains('open');
+  document.querySelectorAll('.input-model-dd.open').forEach(el=>el.classList.remove('open'));
+  if (!isOpen) { renderInputModelPill(); dd.classList.add('open'); }
+}
+
+function selectInputModel(id) {
+  selectModel(id); // reuse existing selectModel
+  renderInputModelPill();
+  document.getElementById('input-model-dd').classList.remove('open');
+}
+
+// Close input model dd on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('#input-model-pill')) {
+    const dd = document.getElementById('input-model-dd');
+    if (dd) dd.classList.remove('open');
+  }
+});
 function selectModel(id) {
   if (id === 'auto') { settings.autoRoute = true; }
   else { settings.autoRoute = false; settings.model = id; }
@@ -5141,9 +5311,10 @@ async function sendMessage() {
   const inp = document.getElementById('chat-input');
   const rawText = inp.value.trim();
   if ((!rawText && !attachments.length) || isStreaming) return;
-  const _smKey = getActiveKey() || settings.groqKey;
+  const _smKey = (typeof getActiveKey === 'function' && getActiveKey()) || settings.groqKey || (()=>{try{return JSON.parse(localStorage.getItem('daveai_providers21')||'{}')?.groq?.key}catch(e){return ''}})();
+  if (!settings.groqKey && _smKey) settings.groqKey = _smKey;
+  if (_smKey && providerSettings?.groq && !providerSettings.groq.key) providerSettings.groq.key = _smKey;
   if (!_smKey) { openPanel('settings'); showToast('⚠️ Add your Groq API key in Settings to start chatting'); updateSendBtn(); return; }
-  if (!settings.groqKey) settings.groqKey = _smKey;
 
   if (!currentConvoId) {
     currentConvoId = 'c_'+Date.now();
@@ -6037,6 +6208,15 @@ function loadSettingsUI(){
   document.getElementById('tog-scroll').className='toggle'+(settings.autoScroll?' on':'');
   document.getElementById('tog-typing').className='toggle'+(settings.typing?' on':'');
   document.getElementById('tog-autoplay').className='toggle'+(settings.autoPlayVoice?' on':'');
+  // Load Supabase settings into UI
+  const sbUrlEl = document.getElementById('sb-url');
+  const sbKeyEl = document.getElementById('sb-anon-key');
+  if (sbUrlEl) sbUrlEl.value = localStorage.getItem('daveai_sb_url') || '';
+  if (sbKeyEl) sbKeyEl.value = localStorage.getItem('daveai_sb_key') || '';
+  const sbStatusEl = document.getElementById('sb-status');
+  if (sbStatusEl && localStorage.getItem('daveai_sb_enabled') === '1' && sbUrlEl && sbUrlEl.value) {
+    sbStatusEl.className = 'api-status ok'; sbStatusEl.textContent = '✓ Supabase enabled — syncing to cloud';
+  }
   document.getElementById('tog-tools-show').className='toggle'+(settings.showTools?' on':'');
   document.getElementById('tog-canvas-auto').className='toggle'+(settings.canvasAuto?' on':'');
   document.getElementById('tog-autoroute').className='toggle'+(settings.autoRoute?' on':'');
@@ -6213,11 +6393,15 @@ function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMe
 function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,180)+'px';}
 function updateSendBtn(){
   const hasText = !!document.getElementById('chat-input').value.trim() || attachments.length > 0;
-  const hasKey  = !!(getActiveKey() || settings.groqKey);
+  // Always check all possible key sources including hardcoded fallback
+  const hasKey  = !!(
+    (typeof getActiveKey === 'function' && getActiveKey()) ||
+    settings.groqKey ||
+    (()=>{try{return JSON.parse(localStorage.getItem('daveai_providers21')||'{}')?.groq?.key}catch(e){return ''}})()
+  );
   const btn     = document.getElementById('send-btn');
   const banner  = document.getElementById('no-key-banner');
-  // Enable send whenever there is text — sendMessage() handles the no-key toast/redirect itself
-  btn.disabled  = !hasText || isStreaming;
+  btn.disabled  = !hasText || isStreaming || !hasKey;
   btn.title     = !hasKey ? 'Add your Groq API key in Settings to start chatting' : '';
   if (banner) banner.style.display = !hasKey ? 'flex' : 'none';
 }
@@ -16867,7 +17051,142 @@ async function generateAndRun() {
   // Set code placeholder
   setTimeout(updateCEXPlaceholder, 500);
 })();
-</script>
 
-</body>
-</html>
+// ══════════════════════════════════════════════
+//  SUPABASE INTEGRATION
+// ══════════════════════════════════════════════
+let _sbUrl = localStorage.getItem('daveai_sb_url') || '';
+let _sbKey = localStorage.getItem('daveai_sb_key') || '';
+let _sbEnabled = !!(localStorage.getItem('daveai_sb_enabled') === '1' && _sbUrl && _sbKey);
+
+function sbHeaders() {
+  return { 'Content-Type': 'application/json', 'apikey': _sbKey, 'Authorization': 'Bearer ' + _sbKey };
+}
+
+async function testSupabase() {
+  const url = document.getElementById('sb-url').value.trim().replace(/\/$/, '');
+  const key = document.getElementById('sb-anon-key').value.trim();
+  const statusEl = document.getElementById('sb-status');
+  if (!url || !key) { statusEl.className='api-status err'; statusEl.textContent='⚠️ Enter URL and key first'; return; }
+  statusEl.className='api-status idle'; statusEl.textContent='Testing connection…';
+  try {
+    const r = await fetch(url + '/rest/v1/', { headers: { 'apikey': key, 'Authorization': 'Bearer ' + key } });
+    if (r.ok || r.status === 200) {
+      statusEl.className='api-status ok'; statusEl.textContent='✓ Connected! Now click Save & Enable.';
+    } else {
+      statusEl.className='api-status err'; statusEl.textContent='✗ Error ' + r.status + ' — check URL and key';
+    }
+  } catch(e) {
+    statusEl.className='api-status err'; statusEl.textContent='✗ ' + e.message;
+  }
+}
+
+function saveSupabaseSettings() {
+  const url = document.getElementById('sb-url').value.trim().replace(/\/$/, '');
+  const key = document.getElementById('sb-anon-key').value.trim();
+  const statusEl = document.getElementById('sb-status');
+  if (!url || !key) { statusEl.className='api-status err'; statusEl.textContent='⚠️ Both fields required'; return; }
+  _sbUrl = url; _sbKey = key; _sbEnabled = true;
+  localStorage.setItem('daveai_sb_url', url);
+  localStorage.setItem('daveai_sb_key', key);
+  localStorage.setItem('daveai_sb_enabled', '1');
+  statusEl.className='api-status ok'; statusEl.textContent='✓ Supabase enabled! Chats will now sync to cloud.';
+  showToast('Supabase connected ✓');
+}
+
+function copySql() {
+  const sql = document.getElementById('sb-sql-block').textContent;
+  navigator.clipboard.writeText(sql).then(() => showToast('SQL copied to clipboard!'));
+}
+
+async function sbRest(method, table, body=null, match=null) {
+  if (!_sbEnabled) return null;
+  let url = _sbUrl + '/rest/v1/' + table;
+  if (match) url += '?' + Object.entries(match).map(([k,v])=>k+'=eq.'+encodeURIComponent(v)).join('&');
+  const opts = { method, headers: sbHeaders() };
+  if (body) opts.body = JSON.stringify(body);
+  if (method === 'POST') opts.headers['Prefer'] = 'return=minimal,resolution=merge-duplicates';
+  const r = await fetch(url, opts);
+  if (method === 'GET' && r.ok) return await r.json();
+  return r.ok;
+}
+
+async function sbSaveConvo(convo) {
+  if (!_sbEnabled) return;
+  try { await sbRest('POST', 'daveai_conversations', { id: convo.id, title: convo.title, messages: convo.messages, updated_at: new Date().toISOString() }); } catch(e) {}
+}
+
+async function sbSyncAll() {
+  if (!_sbEnabled) { showToast('⚠️ Enable Supabase in Settings first'); return; }
+  const syncEl = document.getElementById('sb-sync-status');
+  syncEl.textContent = 'Syncing conversations…';
+  try {
+    let ok = 0;
+    for (const c of conversations) {
+      await sbRest('POST', 'daveai_conversations', { id: c.id, title: c.title||'Chat', messages: c.messages||[], updated_at: new Date().toISOString() });
+      ok++;
+    }
+    // Sync memories
+    for (const m of memories) {
+      await sbRest('POST', 'daveai_memories', { content: m.content || m, user_id: 'default' });
+    }
+    syncEl.textContent = '✓ Synced ' + ok + ' conversations + memories';
+    showToast('Cloud sync complete ✓');
+  } catch(e) { syncEl.textContent = '✗ Sync failed: ' + e.message; }
+}
+
+async function sbPullAll() {
+  if (!_sbEnabled) { showToast('⚠️ Enable Supabase in Settings first'); return; }
+  const syncEl = document.getElementById('sb-sync-status');
+  syncEl.textContent = 'Pulling from cloud…';
+  try {
+    const remote = await sbRest('GET', 'daveai_conversations');
+    if (Array.isArray(remote) && remote.length > 0) {
+      // Merge: remote takes priority for existing IDs
+      const localMap = {};
+      conversations.forEach(c => localMap[c.id] = c);
+      remote.forEach(r => { localMap[r.id] = { id: r.id, title: r.title, messages: r.messages||[] }; });
+      conversations = Object.values(localMap);
+      localStorage.setItem('daveai_convos10', JSON.stringify(conversations));
+      renderHistory && renderHistory();
+      syncEl.textContent = '✓ Pulled ' + remote.length + ' conversations';
+      showToast('Pulled from cloud ✓');
+    } else {
+      syncEl.textContent = 'No data found in cloud yet. Push first.';
+    }
+  } catch(e) { syncEl.textContent = '✗ Pull failed: ' + e.message; }
+}
+
+// Load saved Supabase settings into UI when settings panel opens
+const _origOpenPanel = typeof openPanel === 'function' ? openPanel : null;
+document.addEventListener('DOMContentLoaded', () => {
+  // Patch openPanel to load sb fields
+  const _op = window.openPanel;
+  window.openPanel = function(id) {
+    _op && _op(id);
+    if (id === 'settings') {
+      setTimeout(() => {
+        const urlEl = document.getElementById('sb-url');
+        const keyEl = document.getElementById('sb-anon-key');
+        if (urlEl) urlEl.value = _sbUrl || '';
+        if (keyEl) keyEl.value = _sbKey || '';
+        if (_sbEnabled && urlEl && urlEl.value) {
+          const st = document.getElementById('sb-status');
+          if (st) { st.className='api-status ok'; st.textContent='✓ Supabase enabled'; }
+        }
+      }, 100);
+    }
+  };
+});
+
+// Auto-save to Supabase whenever a conversation is saved
+const _origSaveConvo = window.saveConvo;
+window.saveConvo = function() {
+  _origSaveConvo && _origSaveConvo();
+  if (_sbEnabled && currentConvoId) {
+    const convo = conversations.find(c => c.id === currentConvoId);
+    if (convo) sbSaveConvo(convo);
+  }
+};
+
+</script>
