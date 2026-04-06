@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4108,16 +4110,18 @@ let settings = Object.assign({
 // ── v27 MIGRATION: fix corrupted model from old saves ──
 const _HARDCODED_KEY = '';
 if (settings.model === 'auto' || !settings.model) settings.model = 'llama-3.3-70b-versatile';
-// Always sync key into providerSettings so getActiveKey() never returns empty
-localStorage.setItem('daveai_s10', JSON.stringify(settings));
-// CRITICAL FIX: Pre-populate providerSettings.groq.key from hardcoded key so getActiveKey() works on first load
+// CRITICAL FIX v28: BIDIRECTIONAL sync at early init — providerSettings key wins if settings key is missing
 (function() {
   try {
     const _ps = JSON.parse(localStorage.getItem('daveai_providers21') || '{}');
     if (!_ps.groq) _ps.groq = {};
-    if (!_ps.groq.key) _ps.groq.key = settings.groqKey;
+    // Bidirectional: whichever has the key, copy to both
+    const _earlyKey = _ps.groq.key || settings.groqKey || '';
+    _ps.groq.key = _earlyKey;
+    settings.groqKey = _earlyKey;  // ← FIX: reverse sync so settings.groqKey is always populated
     if (!_ps._active) _ps._active = 'groq';
     localStorage.setItem('daveai_providers21', JSON.stringify(_ps));
+    localStorage.setItem('daveai_s10', JSON.stringify(settings));
   } catch(e) {}
 })();
 
@@ -5989,7 +5993,10 @@ function toggleTool(id){
 //  SETTINGS
 // ══════════════════════════════════════════════════════════════
 function loadSettingsUI(){
-  document.getElementById('api-groq').value=settings.groqKey||'';
+  // FIX: populate api-groq from whichever source has the key (settings OR providerSettings)
+  const _displayKey = settings.groqKey || providerSettings?.groq?.key || '';
+  if (_displayKey && !settings.groqKey) settings.groqKey = _displayKey; // keep in sync
+  document.getElementById('api-groq').value=_displayKey;
   document.getElementById('api-eleven').value=settings.elevenKey||'';
   document.getElementById('api-brave').value=settings.braveKey||'';
   const serperEl=document.getElementById('api-serper'); if(serperEl) serperEl.value=settings.serperKey||'';
@@ -6071,13 +6078,15 @@ function saveSettings(){
   if (document.getElementById('tog-trans-context-s')) settings.transContext = _adv('tog-trans-context-s');
   const _ctsEl = document.getElementById('ctx-threshold-s');
   if (_ctsEl) settings.ctxThreshold = parseInt(_ctsEl.value);
-  // BUG FIX: Always sync groqKey into providerSettings so getActiveKey() works correctly
-  if (settings.groqKey) {
-    if (!providerSettings.groq) providerSettings.groq = {};
-    providerSettings.groq.key = settings.groqKey;
-    if (!providerSettings._active) providerSettings._active = 'groq';
-    localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
+  // FIX: Unconditionally sync groqKey into providerSettings (not just when truthy)
+  // Also: if api-groq field was empty but providerSettings already has a key, keep it
+  if (!settings.groqKey && providerSettings.groq?.key) {
+    settings.groqKey = providerSettings.groq.key; // restore from provider panel if user cleared ui by mistake
   }
+  if (!providerSettings.groq) providerSettings.groq = {};
+  providerSettings.groq.key = settings.groqKey; // always write (even empty to clear)
+  if (!providerSettings._active) providerSettings._active = 'groq';
+  localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
   persistSettings();renderModelDD();closePanel('settings');showToast('Settings saved ✓');
 }
 function persistSettings(){localStorage.setItem('daveai_s10',JSON.stringify(settings));}
@@ -12017,10 +12026,14 @@ function closeProvSwitchMenu() {
   if (_provMenuEl) { _provMenuEl.remove(); _provMenuEl = null; }
 }
 
-// On startup: sync groqKey → providerSettings
+// On startup: BIDIRECTIONAL sync between settings.groqKey and providerSettings.groq.key
+// Whichever has a value wins — this fixes stale empty-key bugs after Provider-panel saves
 {
   if (!providerSettings.groq) providerSettings.groq = { key: '', model: PROVIDERS.groq.defaultModel, status: 'idle' };
-  if (settings.groqKey) providerSettings.groq.key = settings.groqKey;
+  // Priority: providerSettings key first (most recently saved), then fall back to settings.groqKey
+  const _bestKey = providerSettings.groq.key || settings.groqKey || '';
+  providerSettings.groq.key = _bestKey;
+  settings.groqKey = _bestKey;  // ← FIX: always sync back so settings.groqKey is never stale
   if (providerSettings.groq.key) providerSettings.groq.status = 'ok';
   if (!providerSettings._active) providerSettings._active = 'groq';
   localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
@@ -12035,10 +12048,12 @@ function closeProvSwitchMenu() {
     renderFolderSidebar();
     createSlashPopup();
     injectProviderPill();
-    // v27 FIX: Sync groqKey into providerSettings on init
+    // v28 FIX: Bidirectional sync on init — provider key always wins over stale settings key
     {
       if (!providerSettings.groq) providerSettings.groq = { key: '', model: PROVIDERS.groq.defaultModel, status: 'idle' };
-      if (settings.groqKey && !providerSettings.groq.key) providerSettings.groq.key = settings.groqKey;
+      const _initKey = providerSettings.groq.key || settings.groqKey || '';
+      providerSettings.groq.key = _initKey;
+      settings.groqKey = _initKey;  // ← keep settings in sync so callGroq(settings.groqKey,...) always works
       if (providerSettings.groq.key) providerSettings.groq.status = 'ok';
       if (!providerSettings._active) providerSettings._active = 'groq';
       localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
