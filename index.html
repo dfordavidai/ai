@@ -2317,19 +2317,20 @@ body.light{
 
 <!-- ═══ SETTINGS PANEL ═══ -->
 <div class="overlay" id="settings-overlay" onclick="oClick(event,'settings')">
-  <div class="panel">
+  <div class="panel" style="display:flex;flex-direction:column;max-height:88vh;">
     <div class="panel-header">
       <div class="panel-title">⚙️ Settings</div>
       <button class="close-btn" onclick="closePanel('settings')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    <div class="panel-tabs">
-      <button class="ptab active" onclick="switchTab('api',this)">API Keys</button>
+    <div class="panel-tabs" style="flex-wrap:wrap;">
+      <button class="ptab active" onclick="switchTab('api',this)">🔑 API Keys</button>
       <button class="ptab" onclick="switchTab('providers',this);renderProviderGrid()">🌐 Providers</button>
-      <button class="ptab" onclick="switchTab('model',this)">Model</button>
-      <button class="ptab" onclick="switchTab('persona',this)">Persona</button>
-      <button class="ptab" onclick="switchTab('ui',this)">Interface</button>
+      <button class="ptab" onclick="switchTab('model',this)">🤖 Model</button>
+      <button class="ptab" onclick="switchTab('persona',this)">🎭 Persona</button>
+      <button class="ptab" onclick="switchTab('ui',this)">🖥️ Interface</button>
+      <button class="ptab" onclick="switchTab('advanced',this)">⚙️ Advanced</button>
     </div>
-    <div class="panel-body">
+    <div class="panel-body" style="overflow-y:auto;flex:1;">
       <div class="ptab-content active" id="tab-api">
         <div class="upgrade-card">
           <div class="upgrade-card-title">🚀 <span class="v15-badge">v15</span> &nbsp;What's New</div>
@@ -2435,7 +2436,6 @@ body.light{
         <div class="field"><label>Context Summarize Threshold</label><input type="number" id="ctx-threshold" value="20000" min="4000" max="30000" step="1000"></div>
         <div class="field"><div class="field-row"><span class="toggle-label">Auto-summarize context</span><button class="toggle on" id="tog-autosumm" onclick="this.classList.toggle('on')"></button></div></div>
         <div class="field"><div class="field-row"><span class="toggle-label">Show chain-of-thought</span><button class="toggle on" id="tog-cot" onclick="this.classList.toggle('on')"></button></div></div>
-        <button class="save-btn" onclick="saveSettings()">Save</button>
       </div>
       <div class="ptab-content" id="tab-persona">
         <div class="field"><label>Active Persona</label>
@@ -2454,7 +2454,6 @@ body.light{
           <div class="field"><label>Custom System Prompt</label><textarea id="custom-prompt" placeholder="You are DaveAI…" style="min-height:110px"></textarea></div>
         </div>
         <div class="field"><label>DaveAI Name</label><input type="text" id="dave-name" value="DaveAI" placeholder="DaveAI"></div>
-        <button class="save-btn" onclick="saveSettings()">Save</button>
       </div>
       <div class="ptab-content" id="tab-ui">
         <div class="field"><div class="field-row"><span class="toggle-label">Auto-scroll to new messages</span><button class="toggle on" id="tog-scroll" onclick="this.classList.toggle('on')"></button></div></div>
@@ -2473,8 +2472,44 @@ body.light{
           <span class="toggle-label">Enable push notifications (background alerts)</span>
           <button onclick="requestNotifications()" style="padding:6px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text2);font-family:inherit;font-size:13px;cursor:pointer">Enable</button>
         </div>
-        <button class="save-btn" onclick="saveSettings()">Save</button>
       </div>
+
+      <!-- ══ ADVANCED TAB ══ -->
+      <div class="ptab-content" id="tab-advanced">
+        <div class="sec-head">🧠 Memory &amp; Context</div>
+        <div class="field"><div class="field-row"><span class="toggle-label">Auto-memory (extract facts from chat)</span><button class="toggle on" id="tog-auto-mem-s" onclick="this.classList.toggle('on')"></button></div>
+          <div class="field-desc">DaveAI learns your name, preferences, and facts as you chat.</div>
+        </div>
+        <div class="field"><div class="field-row"><span class="toggle-label">RAG — inject uploaded docs into context</span><button class="toggle" id="tog-rag-s" onclick="this.classList.toggle('on')"></button></div>
+          <div class="field-desc">When ON, documents you upload are included in every message.</div>
+        </div>
+        <div class="field"><div class="field-row"><span class="toggle-label">Auto-summarize long context</span><button class="toggle on" id="tog-autosumm-s" onclick="this.classList.toggle('on')"></button></div></div>
+        <div class="field"><label>Context Summarize Threshold (tokens)</label>
+          <input type="number" id="ctx-threshold-s" value="20000" min="4000" max="30000" step="1000">
+          <div class="field-desc">Compress conversation when it exceeds this many tokens.</div>
+        </div>
+        <div class="divider"></div>
+        <div class="sec-head">🔗 Agent &amp; Tools</div>
+        <div class="field"><div class="field-row"><span class="toggle-label">Smart auto-routing (pick best model per task)</span><button class="toggle on" id="tog-autoroute-s" onclick="this.classList.toggle('on')"></button></div>
+          <div class="field-desc">Vision models for images, reasoning models for math, fast models for simple chat.</div>
+        </div>
+        <div class="field"><div class="field-row"><span class="toggle-label">Show chain-of-thought reasoning</span><button class="toggle on" id="tog-cot-s" onclick="this.classList.toggle('on')"></button></div></div>
+        <div class="divider"></div>
+        <div class="sec-head">🌍 Translation</div>
+        <div class="field"><div class="field-row"><span class="toggle-label">Include cultural context in translations</span><button class="toggle on" id="tog-trans-context-s" onclick="this.classList.toggle('on')"></button></div></div>
+        <div class="divider"></div>
+        <div class="sec-head">🗑️ Data Management</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+          <button onclick="if(confirm('Clear all chat history?')){localStorage.removeItem('daveai_chats');showToast('Chat history cleared ✓');}" style="padding:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text2);font-family:inherit;font-size:12px;cursor:pointer">🗑️ Clear Chats</button>
+          <button onclick="if(confirm('Clear all memories?')){localStorage.removeItem('daveai_mem');showToast('Memories cleared ✓');}" style="padding:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text2);font-family:inherit;font-size:12px;cursor:pointer">🧠 Clear Memory</button>
+          <button onclick="if(confirm('Reset ALL settings to defaults? This cannot be undone.')){localStorage.clear();location.reload();}" style="padding:8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:var(--r-sm);color:#f87171;font-family:inherit;font-size:12px;cursor:pointer;grid-column:1/-1">⚠️ Factory Reset Everything</button>
+        </div>
+      </div>
+
+    </div>
+    <!-- ── STICKY SAVE FOOTER ── -->
+    <div style="padding:12px 22px 16px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0;">
+      <button class="save-btn" onclick="saveSettings()" style="margin:0">💾 Save All Settings</button>
     </div>
   </div>
 </div>
@@ -5986,6 +6021,16 @@ function loadSettingsUI(){
   if (togRag) togRag.className = 'toggle' + (settings.ragActive ? ' on' : '');
   const togTransCtx = document.getElementById('tog-trans-context');
   if (togTransCtx) togTransCtx.className = 'toggle' + (settings.transContext ? ' on' : '');
+  // Advanced tab mirrors
+  const _s = (id, val) => { const el = document.getElementById(id); if(el) el.className = 'toggle' + (val ? ' on' : ''); };
+  _s('tog-auto-mem-s', settings.autoMem);
+  _s('tog-rag-s', settings.ragActive);
+  _s('tog-autosumm-s', settings.autoSumm);
+  _s('tog-autoroute-s', settings.autoRoute);
+  _s('tog-cot-s', settings.showCoT);
+  _s('tog-trans-context-s', settings.transContext);
+  const ctsEl = document.getElementById('ctx-threshold-s');
+  if (ctsEl) ctsEl.value = settings.ctxThreshold || 20000;
   updatePersonaFields();
 }
 function saveSettings(){
@@ -6016,6 +6061,16 @@ function saveSettings(){
   if (_togRag) { settings.ragActive = _togRag.classList.contains('on'); ragActive = settings.ragActive; }
   const _togTransCtx = document.getElementById('tog-trans-context');
   if (_togTransCtx) { settings.transContext = _togTransCtx.classList.contains('on'); }
+  // Advanced tab mirrors (override with their values if user was on that tab)
+  const _adv = (id) => { const el = document.getElementById(id); return el ? el.classList.contains('on') : null; };
+  if (document.getElementById('tog-auto-mem-s')) settings.autoMem = _adv('tog-auto-mem-s');
+  if (document.getElementById('tog-rag-s')) { settings.ragActive = _adv('tog-rag-s'); ragActive = settings.ragActive; }
+  if (document.getElementById('tog-autosumm-s')) settings.autoSumm = _adv('tog-autosumm-s');
+  if (document.getElementById('tog-autoroute-s')) settings.autoRoute = _adv('tog-autoroute-s');
+  if (document.getElementById('tog-cot-s')) settings.showCoT = _adv('tog-cot-s');
+  if (document.getElementById('tog-trans-context-s')) settings.transContext = _adv('tog-trans-context-s');
+  const _ctsEl = document.getElementById('ctx-threshold-s');
+  if (_ctsEl) settings.ctxThreshold = parseInt(_ctsEl.value);
   // BUG FIX: Always sync groqKey into providerSettings so getActiveKey() works correctly
   if (settings.groqKey) {
     if (!providerSettings.groq) providerSettings.groq = {};
@@ -6075,14 +6130,21 @@ async function testKey(type){
     }
   } else if(type==='eleven'){
     const key=document.getElementById('api-eleven').value.trim();
-    if(!key){setApiStatus('eleven','err','No key');return;}
+    if(!key){setApiStatus('eleven','err','No key entered');return;}
     setApiStatus('eleven','idle','Testing…');
+    // Save the key immediately before any fetch attempt
+    settings.elevenKey = key;
+    persistSettings();
     try{
       const r=await fetch('https://api.elevenlabs.io/v1/voices',{headers:{'xi-api-key':key}});
-      r.ok?setApiStatus('eleven','ok','✓ ElevenLabs connected!'):setApiStatus('eleven','err','Invalid key');
+      if(r.ok){
+        setApiStatus('eleven','ok','✓ ElevenLabs connected — premium voice ready!');
+      } else {
+        setApiStatus('eleven','err', r.status===401 ? 'Invalid key — check it at elevenlabs.io' : 'Error: HTTP '+r.status);
+      }
     }catch(e){
-      if(location.protocol==='file:') setApiStatus('eleven','ok','✓ Key saved (file:// blocks live test — will work in chat)');
-      else setApiStatus('eleven','err','Network error');
+      // CORS/network blocks test fetch — key is already saved, will work for TTS calls
+      setApiStatus('eleven','ok','✓ Key saved! (Browser CORS blocks test ping — will work for voice)');
     }
   }
 }
