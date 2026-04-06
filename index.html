@@ -2003,6 +2003,13 @@ body.light{
           <div class="input-footer">
             <span id="token-disp" style="font-size:11px;color:var(--text3)"></span>
           </div>
+          <!-- No-key warning banner (shown/hidden by updateSendBtn) -->
+          <div id="no-key-banner" style="display:none;align-items:center;gap:8px;padding:7px 12px;margin-top:4px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:var(--r-sm);font-size:12px;color:var(--amber);">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>No API key set — </span>
+            <button onclick="openPanel('settings')" style="background:none;border:none;color:var(--amber);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;padding:0;">open Settings</button>
+            <span>to add your free Groq key and start chatting.</span>
+          </div>
         </div>
       </div>
     </div>
@@ -5130,7 +5137,7 @@ async function sendMessage() {
   const rawText = inp.value.trim();
   if ((!rawText && !attachments.length) || isStreaming) return;
   const _smKey = getActiveKey() || settings.groqKey;
-  if (!_smKey) { openPanel('settings'); showToast('⚠️ Set your API key in Settings first'); return; }
+  if (!_smKey) { openPanel('settings'); showToast('⚠️ Add your Groq API key in Settings to start chatting'); updateSendBtn(); return; }
   if (!settings.groqKey) settings.groqKey = _smKey;
 
   if (!currentConvoId) {
@@ -6092,7 +6099,7 @@ function saveSettings(){
     if (!providerSettings._active) providerSettings._active = 'groq';
     localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
   }
-  persistSettings();renderModelDD();closePanel('settings');showToast('Settings saved ✓');
+  persistSettings();renderModelDD();closePanel('settings');showToast('Settings saved ✓');updateSendBtn();
 }
 function persistSettings(){localStorage.setItem('daveai_s10',JSON.stringify(settings));}
 function updatePersonaFields(){document.getElementById('custom-prompt-wrap').style.display=document.getElementById('persona-sel').value==='custom'?'':'none';}
@@ -6122,11 +6129,12 @@ async function testKey(type){
         providerSettings.groq.status = 'ok';
         localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
         setApiStatus('groq','ok','✓ Connected! Key is live — ready to chat.');
+        updateSendBtn();
       } else {
         const errData = await r.json().catch(()=>({}));
         const msg = errData?.error?.message || `HTTP ${r.status}`;
         if(r.status===401) setApiStatus('groq','err','Invalid key — check it at console.groq.com');
-        else if(r.status===429) { setApiStatus('groq','ok','✓ Key valid (rate limited — still works)'); providerSettings.groq.status='ok'; localStorage.setItem('daveai_providers21',JSON.stringify(providerSettings)); }
+        else if(r.status===429) { setApiStatus('groq','ok','✓ Key valid (rate limited — still works)'); providerSettings.groq.status='ok'; localStorage.setItem('daveai_providers21',JSON.stringify(providerSettings)); updateSendBtn(); }
         else setApiStatus('groq','err','Error: '+msg);
       }
     }catch(e){
@@ -6141,6 +6149,7 @@ async function testKey(type){
         // The key is already saved — it will work for actual chat calls.
         setApiStatus('groq','ok','✓ Key saved! (CORS blocked test ping — key is stored and will work in chat)');
       }
+      updateSendBtn();
     }
   } else if(type==='eleven'){
     const key=document.getElementById('api-eleven').value.trim();
@@ -6197,7 +6206,15 @@ function switchTab(name, btn){
 // ══════════════════════════════════════════════════════════════
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
 function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,180)+'px';}
-function updateSendBtn(){document.getElementById('send-btn').disabled=(!document.getElementById('chat-input').value.trim()&&!attachments.length)||isStreaming;}
+function updateSendBtn(){
+  const hasText = !!document.getElementById('chat-input').value.trim() || attachments.length > 0;
+  const hasKey  = !!(getActiveKey() || settings.groqKey);
+  const btn     = document.getElementById('send-btn');
+  const banner  = document.getElementById('no-key-banner');
+  btn.disabled  = !hasText || isStreaming || !hasKey;
+  btn.title     = !hasKey ? 'Add your Groq API key in Settings to start chatting' : '';
+  if (banner) banner.style.display = !hasKey ? 'flex' : 'none';
+}
 function scrollBottom(smooth=false){const w=document.getElementById('messages-wrap');if(!w)return;if(smooth){w.scrollTo({top:w.scrollHeight,behavior:'smooth'});}else{w.scrollTop=w.scrollHeight;}}
 function toggleSidebar(){
   const sb = document.getElementById('sidebar');
