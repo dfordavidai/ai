@@ -11659,7 +11659,12 @@ sendMessage = async function() {
   if ((!rawText && !attachments.length) || isStreaming) return;
 
   const key = getActiveKey();
-  if (!key) { openPanel('settings'); setTimeout(() => { const tabs = document.querySelectorAll('.ptab'); tabs.forEach(t => { if (t.textContent.includes('Providers')) t.click(); }); }, 100); showToast('⚠️ Set your API key in Providers settings'); return; }
+  if (!key) {
+    showToast('⚠️ Add your Groq API key in Settings → Providers to start chatting');
+    openPanel('settings');
+    setTimeout(() => { const tabs = document.querySelectorAll('.ptab'); tabs.forEach(t => { if (t.textContent.includes('Providers')) t.click(); }); }, 100);
+    return;
+  }
 
   // Sync groqKey so existing code that reads it still works
   if (providerSettings._active === 'groq') settings.groqKey = key;
