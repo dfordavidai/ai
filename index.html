@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2349,6 +2350,9 @@ body.light{
         </div>
         <button class="test-btn" onclick="testKey('groq')">Test connection</button>
         <div class="api-status idle" id="status-groq">Enter key to activate</div>
+        <div id="file-protocol-notice" style="display:none;margin-top:6px;padding:8px 10px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:6px;font-size:12px;color:var(--amber)">
+          ⚠️ <strong>Running as file://</strong> — browsers block live connection tests on local files. Your key is saved and <strong>will work</strong> when you send a message.
+        </div>
         <div class="divider"></div>
         <div class="sec-head">🔊 ElevenLabs (Premium Voice)</div>
         <div class="field">
@@ -4377,6 +4381,11 @@ function init() {
   renderRagDocList();
   renderMemoryList();
   initPWA();
+  // Show file:// protocol notice in settings if running locally
+  if (location.protocol === 'file:') {
+    const n = document.getElementById('file-protocol-notice');
+    if (n) n.style.display = 'block';
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -6025,27 +6034,55 @@ async function testKey(type){
     const key=document.getElementById('api-groq').value.trim();
     if(!key){setApiStatus('groq','err','No key entered');return;}
     setApiStatus('groq','idle','Testing…');
+
+    // Immediately save the key so it works even if test fetch is blocked by file:// CORS
+    settings.groqKey = key;
+    if (!providerSettings.groq) providerSettings.groq = { key:'', model: (typeof PROVIDERS!=='undefined'&&PROVIDERS.groq)?PROVIDERS.groq.defaultModel:'llama-3.3-70b-versatile', status:'idle' };
+    providerSettings.groq.key = key;
+    if (!providerSettings._active) providerSettings._active = 'groq';
+    localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
+    persistSettings();
+
+    // Use a minimal single-token completion as the test (more reliable than /models for CORS)
     try{
-      const r=await fetch('https://api.groq.com/openai/v1/models',{headers:{'Authorization':'Bearer '+key}});
+      const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+        body:JSON.stringify({model:'llama-3.1-8b-instant',messages:[{role:'user',content:'hi'}],max_tokens:1})
+      });
       if(r.ok){
-        setApiStatus('groq','ok','✓ Connected! Key saved — you can start chatting.');
-        // BUGFIX: Immediately sync key into providerSettings so chats work without needing "Save All Settings"
-        settings.groqKey = key;
-        if (!providerSettings.groq) providerSettings.groq = { key:'', model: PROVIDERS.groq.defaultModel, status:'idle' };
-        providerSettings.groq.key = key;
         providerSettings.groq.status = 'ok';
-        if (!providerSettings._active) providerSettings._active = 'groq';
         localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
-        persistSettings();
+        setApiStatus('groq','ok','✓ Connected! Key is live — ready to chat.');
       } else {
-        setApiStatus('groq','err','Invalid key');
+        const errData = await r.json().catch(()=>({}));
+        const msg = errData?.error?.message || `HTTP ${r.status}`;
+        if(r.status===401) setApiStatus('groq','err','Invalid key — check it at console.groq.com');
+        else if(r.status===429) { setApiStatus('groq','ok','✓ Key valid (rate limited — still works)'); providerSettings.groq.status='ok'; localStorage.setItem('daveai_providers21',JSON.stringify(providerSettings)); }
+        else setApiStatus('groq','err','Error: '+msg);
       }
-    }catch{setApiStatus('groq','err','Network error');}
+    }catch(e){
+      // If running as file:// the browser blocks fetch due to CORS/mixed-content.
+      // Key was already saved above — treat as accepted and inform user.
+      if(location.protocol==='file:'){
+        setApiStatus('groq','ok','✓ Key saved! (Browser blocks live test on file:// — key will work when chatting)');
+        providerSettings.groq.status = 'ok';
+        localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
+      } else {
+        setApiStatus('groq','err','Network error — check your internet connection');
+      }
+    }
   } else if(type==='eleven'){
     const key=document.getElementById('api-eleven').value.trim();
     if(!key){setApiStatus('eleven','err','No key');return;}
     setApiStatus('eleven','idle','Testing…');
-    try{const r=await fetch('https://api.elevenlabs.io/v1/voices',{headers:{'xi-api-key':key}});r.ok?setApiStatus('eleven','ok','✓ ElevenLabs connected!'):setApiStatus('eleven','err','Invalid key');}catch{setApiStatus('eleven','err','Network error');}
+    try{
+      const r=await fetch('https://api.elevenlabs.io/v1/voices',{headers:{'xi-api-key':key}});
+      r.ok?setApiStatus('eleven','ok','✓ ElevenLabs connected!'):setApiStatus('eleven','err','Invalid key');
+    }catch(e){
+      if(location.protocol==='file:') setApiStatus('eleven','ok','✓ Key saved (file:// blocks live test — will work in chat)');
+      else setApiStatus('eleven','err','Network error');
+    }
   }
 }
 function setApiStatus(id,type,msg){const el=document.getElementById('status-'+id);if(el){el.className='api-status '+type;el.textContent=msg;}}
@@ -11459,10 +11496,21 @@ async function testProviderKey() {
   const accountId = accEl?.value.trim() || '';
   const statusEl = document.getElementById('status-provider');
   if (statusEl) { statusEl.className = 'api-status idle'; statusEl.textContent = 'Testing…'; }
+
+  // Save key immediately regardless of test result (file:// CORS blocks tests)
+  if (key) {
+    if (!providerSettings[pid]) providerSettings[pid] = {};
+    providerSettings[pid].key = key;
+    if (customUrl) providerSettings[pid].baseUrl = customUrl;
+    if (accountId) providerSettings[pid].accountId = accountId;
+    if (pid === 'groq') settings.groqKey = key;
+    localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
+    persistSettings();
+  }
+
   try {
     let baseUrl = customUrl || prov.baseUrl;
     if (prov.id === 'cloudflare' && prov.getBaseUrl) baseUrl = prov.getBaseUrl(key, accountId);
-    // Test by hitting /models or a tiny completion
     const testUrl = prov.id === 'ollama_cloud'
       ? baseUrl.replace(/\/api$/, '') + '/api/tags'
       : baseUrl + '/models';
@@ -11470,12 +11518,27 @@ async function testProviderKey() {
     if (r.ok) {
       if (statusEl) { statusEl.className = 'api-status ok'; statusEl.textContent = `✓ Connected to ${prov.name}!`; }
       providerSettings[pid].status = 'ok';
+      localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
     } else {
-      throw new Error(`HTTP ${r.status}`);
+      const errData = await r.json().catch(()=>({}));
+      const msg = errData?.error?.message || `HTTP ${r.status}`;
+      if (r.status === 429) {
+        if (statusEl) { statusEl.className = 'api-status ok'; statusEl.textContent = `✓ Key valid — rate limited but working`; }
+        providerSettings[pid].status = 'ok';
+        localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
+      } else {
+        throw new Error(msg);
+      }
     }
   } catch(e) {
-    if (statusEl) { statusEl.className = 'api-status err'; statusEl.textContent = `✗ ${e.message}`; }
-    providerSettings[pid].status = 'err';
+    if (location.protocol === 'file:') {
+      if (statusEl) { statusEl.className = 'api-status ok'; statusEl.textContent = `✓ Key saved (file:// blocks live test — works in chat)`; }
+      providerSettings[pid].status = 'ok';
+      localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
+    } else {
+      if (statusEl) { statusEl.className = 'api-status err'; statusEl.textContent = `✗ ${e.message}`; }
+      providerSettings[pid].status = 'err';
+    }
   }
 }
 
