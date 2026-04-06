@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4105,36 +4103,44 @@ let settings = Object.assign({
   persona:'default', customPrompt:'', daveName:'DaveAI',
   autoScroll:true, typing:true, autoPlayVoice:false, showTools:true, canvasAuto:true,
   autoMem:true, ragActive:false, transContext:true, // Bug fix: persist toggle states
-}, JSON.parse(localStorage.getItem('daveai_s10') || '{}'));
+}, (()=>{try{return JSON.parse(localStorage.getItem('daveai_s10')||'{}');}catch(e){localStorage.removeItem('daveai_s10');return{};}})());
 
 // ── v27 MIGRATION: fix corrupted model from old saves ──
 const _HARDCODED_KEY = '';
 if (settings.model === 'auto' || !settings.model) settings.model = 'llama-3.3-70b-versatile';
-// CRITICAL FIX v28: BIDIRECTIONAL sync at early init — providerSettings key wins if settings key is missing
+// Always sync key into providerSettings so getActiveKey() never returns empty
+localStorage.setItem('daveai_s10', JSON.stringify(settings));
+// CRITICAL FIX: Pre-populate providerSettings.groq.key from hardcoded key so getActiveKey() works on first load
 (function() {
   try {
     const _ps = JSON.parse(localStorage.getItem('daveai_providers21') || '{}');
     if (!_ps.groq) _ps.groq = {};
-    // Bidirectional: whichever has the key, copy to both
-    const _earlyKey = _ps.groq.key || settings.groqKey || '';
-    _ps.groq.key = _earlyKey;
-    settings.groqKey = _earlyKey;  // ← FIX: reverse sync so settings.groqKey is always populated
+    if (!_ps.groq.key) _ps.groq.key = settings.groqKey;
     if (!_ps._active) _ps._active = 'groq';
     localStorage.setItem('daveai_providers21', JSON.stringify(_ps));
-    localStorage.setItem('daveai_s10', JSON.stringify(settings));
   } catch(e) {}
 })();
 
-let conversations = JSON.parse(localStorage.getItem('daveai_convos10') || '[]');
-let projects = JSON.parse(localStorage.getItem('daveai_projs10') || '[]');
-let savedPrompts = JSON.parse(localStorage.getItem('daveai_prompts10') || JSON.stringify(DEFAULT_PROMPTS()));
+// ── providerSettings declared here so all functions can access it ──
+let providerSettings = (function() {
+  let _ps; try { _ps = JSON.parse(localStorage.getItem('daveai_providers21') || '{}'); } catch(e) { localStorage.removeItem('daveai_providers21'); _ps = {}; }
+  // Will be fully initialized when PROVIDERS object is defined later, but declare now
+  if (!_ps._active) _ps._active = 'groq';
+  if (!_ps.groq) _ps.groq = { key: '', model: 'llama-3.3-70b-versatile', status: 'idle' };
+  if (!_ps.groq.key && settings.groqKey) _ps.groq.key = settings.groqKey;
+  return _ps;
+})();
+
+let conversations = (()=>{try{return JSON.parse(localStorage.getItem('daveai_convos10')||'[]');}catch(e){localStorage.removeItem('daveai_convos10');return[];}})();
+let projects = (()=>{try{return JSON.parse(localStorage.getItem('daveai_projs10')||'[]');}catch(e){localStorage.removeItem('daveai_projs10');return[];}})();
+let savedPrompts = (()=>{try{return JSON.parse(localStorage.getItem('daveai_prompts10')||JSON.stringify(DEFAULT_PROMPTS()));}catch(e){localStorage.removeItem('daveai_prompts10');return DEFAULT_PROMPTS();}})();
 let currentConvoId = null;
 let currentProjectId = null;
 let messages = [];
 let isStreaming = false;
 let attachments = [];
 let activeTools = new Set(['web','reason']);
-let memories = JSON.parse(localStorage.getItem('daveai_mem10') || '[]');
+let memories = (()=>{try{return JSON.parse(localStorage.getItem('daveai_mem10')||'[]');}catch(e){localStorage.removeItem('daveai_mem10');return[];}})();
 let tokenCount = 0;
 let recognition = null;
 let isRecording = false;
@@ -4144,7 +4150,7 @@ let selectedProjColor = '#4f8ef7';
 let newProjColor = '#4f8ef7';
 let canvasOpen = false;
 let currentArtifact = null;
-let ragDocs = JSON.parse(localStorage.getItem('daveai_rag10') || '[]');
+let ragDocs = (()=>{try{return JSON.parse(localStorage.getItem('daveai_rag10')||'[]');}catch(e){localStorage.removeItem('daveai_rag10');return[];}})();
 let ragActive = settings.ragActive || false; // Bug fix: restore persisted state
 let cmdPaletteOpen = false;
 let cmdSelectedIdx = 0;
@@ -4454,6 +4460,7 @@ function autoRouteModel(text, hasImages) {
 // ══════════════════════════════════════════════════════════════
 function renderModelDD() {
   const dd = document.getElementById('model-dd');
+  if (!dd) return;
   dd.innerHTML = MODELS.map(m=>`
     <div class="md-item ${(m.id==='auto'?settings.autoRoute:m.id===settings.model&&!settings.autoRoute)?'sel':''}" onclick="selectModel('${m.id}');event.stopPropagation()">
       <div class="md-dot" style="background:${m.color}"></div>
@@ -4571,9 +4578,8 @@ function toggleCanvas() {
   canvasOpen = !canvasOpen;
   const pane = document.getElementById('canvas-pane');
   const btn = document.getElementById('canvas-toggle-btn');
-  pane.style.display = canvasOpen ? 'flex' : 'none';
-  pane.style.flexDirection = canvasOpen ? 'column' : '';
-  btn.style.color = canvasOpen ? 'var(--accent2)' : '';
+  if (pane) { pane.style.display = canvasOpen ? 'flex' : 'none'; pane.style.flexDirection = canvasOpen ? 'column' : ''; }
+  if (btn) btn.style.color = canvasOpen ? 'var(--accent2)' : '';
   showToast(canvasOpen ? 'Canvas opened' : 'Canvas closed');
 }
 function switchArtifactTab(tab, btn) {
@@ -5993,10 +5999,11 @@ function toggleTool(id){
 //  SETTINGS
 // ══════════════════════════════════════════════════════════════
 function loadSettingsUI(){
-  // FIX: populate api-groq from whichever source has the key (settings OR providerSettings)
-  const _displayKey = settings.groqKey || providerSettings?.groq?.key || '';
-  if (_displayKey && !settings.groqKey) settings.groqKey = _displayKey; // keep in sync
-  document.getElementById('api-groq').value=_displayKey;
+  document.getElementById('api-groq').value=settings.groqKey||'';
+  if(settings.groqKey) setApiStatus('groq','ok','✓ Key loaded — ready to chat.');
+  else setApiStatus('groq','idle','Enter key to activate');
+  if(settings.elevenKey) setApiStatus('eleven','ok','✓ ElevenLabs key loaded.');
+  else setApiStatus('eleven','idle','Enter key to test');
   document.getElementById('api-eleven').value=settings.elevenKey||'';
   document.getElementById('api-brave').value=settings.braveKey||'';
   const serperEl=document.getElementById('api-serper'); if(serperEl) serperEl.value=settings.serperKey||'';
@@ -6078,15 +6085,13 @@ function saveSettings(){
   if (document.getElementById('tog-trans-context-s')) settings.transContext = _adv('tog-trans-context-s');
   const _ctsEl = document.getElementById('ctx-threshold-s');
   if (_ctsEl) settings.ctxThreshold = parseInt(_ctsEl.value);
-  // FIX: Unconditionally sync groqKey into providerSettings (not just when truthy)
-  // Also: if api-groq field was empty but providerSettings already has a key, keep it
-  if (!settings.groqKey && providerSettings.groq?.key) {
-    settings.groqKey = providerSettings.groq.key; // restore from provider panel if user cleared ui by mistake
+  // BUG FIX: Always sync groqKey into providerSettings so getActiveKey() works correctly
+  if (settings.groqKey) {
+    if (!providerSettings.groq) providerSettings.groq = {};
+    providerSettings.groq.key = settings.groqKey;
+    if (!providerSettings._active) providerSettings._active = 'groq';
+    localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
   }
-  if (!providerSettings.groq) providerSettings.groq = {};
-  providerSettings.groq.key = settings.groqKey; // always write (even empty to clear)
-  if (!providerSettings._active) providerSettings._active = 'groq';
-  localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
   persistSettings();renderModelDD();closePanel('settings');showToast('Settings saved ✓');
 }
 function persistSettings(){localStorage.setItem('daveai_s10',JSON.stringify(settings));}
@@ -6365,6 +6370,7 @@ async function requestNotifications() {
 // ══════════════════════════════════════════════════════════════
 function renderChatList() {
   const el = document.getElementById('chat-list');
+  if (!el) return;
   if (!conversations.length) {
     el.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--text3);text-align:center">No conversations yet</div>';
     return;
@@ -6714,7 +6720,7 @@ button.add{padding:10px 18px;background:#4f8ef7;border:none;border-radius:8px;co
   <div class="stats" id="stats"></div>
 </div>
 <script>
-let todos=JSON.parse(localStorage.getItem('todos')||'[]');
+let todos=(()=>{try{return JSON.parse(localStorage.getItem('todos')||'[]');}catch(e){return[];}})();
 function save(){localStorage.setItem('todos',JSON.stringify(todos));}
 function render(){
   const el=document.getElementById('list');
@@ -8826,8 +8832,8 @@ document.addEventListener('keydown', e => {
 // ════════════════════════════════════════════════════════════
 
 // ── SHARED v19 STATE ──
-let customInstructions = JSON.parse(localStorage.getItem('daveai_ci19') || '{}');
-let scheduledTasks = JSON.parse(localStorage.getItem('daveai_sched19') || '[]');
+let customInstructions = (()=>{try{return JSON.parse(localStorage.getItem('daveai_ci19')||'{}');}catch(e){return{};}})();
+let scheduledTasks = (()=>{try{return JSON.parse(localStorage.getItem('daveai_sched19')||'[]');}catch(e){return[];}})();
 let schedTimers = {};
 let learnState = { curriculum:[], currentIdx:0, completedIdx:new Set() };
 let quizState = { questions:[], currentIdx:0, score:0, mode:'quiz', flashIdx:0 };
@@ -9112,7 +9118,7 @@ function toggleMGPlay() {
   bars.forEach(b => { b.style.height = mgState.playing ? b.style.getPropertyValue('--h') || '50%' : '20%'; });
 }
 function copyMusicPrompt() {
-  const last = JSON.parse(localStorage.getItem('daveai_mg_last19') || '{}');
+  const last = (()=>{try{return JSON.parse(localStorage.getItem('daveai_mg_last19')||'{}');}catch(e){return{};}})();
   navigator.clipboard.writeText(last.suno_prompt || 'No prompt').then(()=>showToast('📋 Prompt copied!'));
 }
 
@@ -11427,14 +11433,15 @@ const PROVIDERS = {
   },
 };
 
-// Provider settings stored in localStorage
-let providerSettings = JSON.parse(localStorage.getItem('daveai_providers21') || '{}');
-// Ensure defaults
+// Provider settings — fully initialize now that PROVIDERS object exists
+// (providerSettings was declared early in STATE section; now populate all provider keys)
 Object.keys(PROVIDERS).forEach(id => {
   if (!providerSettings[id]) providerSettings[id] = { key: '', accountId: '', baseUrl: '', model: PROVIDERS[id].defaultModel, status: 'idle' };
 });
-// Active provider
 if (!providerSettings._active) providerSettings._active = 'groq';
+// Sync groqKey from settings into provider config
+if (settings.groqKey && !providerSettings.groq.key) providerSettings.groq.key = settings.groqKey;
+localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
 
 function saveProviderSettings() {
   // read current UI
@@ -12026,14 +12033,10 @@ function closeProvSwitchMenu() {
   if (_provMenuEl) { _provMenuEl.remove(); _provMenuEl = null; }
 }
 
-// On startup: BIDIRECTIONAL sync between settings.groqKey and providerSettings.groq.key
-// Whichever has a value wins — this fixes stale empty-key bugs after Provider-panel saves
+// On startup: sync groqKey → providerSettings
 {
   if (!providerSettings.groq) providerSettings.groq = { key: '', model: PROVIDERS.groq.defaultModel, status: 'idle' };
-  // Priority: providerSettings key first (most recently saved), then fall back to settings.groqKey
-  const _bestKey = providerSettings.groq.key || settings.groqKey || '';
-  providerSettings.groq.key = _bestKey;
-  settings.groqKey = _bestKey;  // ← FIX: always sync back so settings.groqKey is never stale
+  if (settings.groqKey) providerSettings.groq.key = settings.groqKey;
   if (providerSettings.groq.key) providerSettings.groq.status = 'ok';
   if (!providerSettings._active) providerSettings._active = 'groq';
   localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
@@ -12048,12 +12051,10 @@ function closeProvSwitchMenu() {
     renderFolderSidebar();
     createSlashPopup();
     injectProviderPill();
-    // v28 FIX: Bidirectional sync on init — provider key always wins over stale settings key
+    // v27 FIX: Sync groqKey into providerSettings on init
     {
       if (!providerSettings.groq) providerSettings.groq = { key: '', model: PROVIDERS.groq.defaultModel, status: 'idle' };
-      const _initKey = providerSettings.groq.key || settings.groqKey || '';
-      providerSettings.groq.key = _initKey;
-      settings.groqKey = _initKey;  // ← keep settings in sync so callGroq(settings.groqKey,...) always works
+      if (settings.groqKey && !providerSettings.groq.key) providerSettings.groq.key = settings.groqKey;
       if (providerSettings.groq.key) providerSettings.groq.status = 'ok';
       if (!providerSettings._active) providerSettings._active = 'groq';
       localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
@@ -15521,7 +15522,7 @@ function loadKGFromStorage(){
   if(!keys.length){ showToast('No saved graphs found'); return; }
   const latest=keys.sort().pop();
   try{
-    const saved=JSON.parse(localStorage.getItem(latest));
+    const saved=(()=>{try{return JSON.parse(localStorage.getItem(latest));}catch(e){return null;}})();
     document.getElementById('kg-result').style.display='block';
     document.getElementById('kg-output').innerHTML=marked.parse(saved.data||'');
     showToast('Loaded saved graph');
