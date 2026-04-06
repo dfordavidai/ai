@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4437,6 +4438,8 @@ function init() {
     const n = document.getElementById('file-protocol-notice');
     if (n) n.style.display = 'block';
   }
+  // BUG FIX: Enable send button on load if a key is already saved
+  updateSendBtn();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -4482,7 +4485,7 @@ function renderModelDD() {
   let displayName;
   if (settings.autoRoute) {
     displayName = 'DaveAI';
-  } else if (pid && pid !== 'groq' && PROVIDERS[pid]) {
+  } else if (pid && pid !== 'groq' && typeof PROVIDERS !== 'undefined' && PROVIDERS[pid]) {
     const provModel = providerSettings[pid]?.model || PROVIDERS[pid].defaultModel || '';
     displayName = provModel.split('/').pop() || PROVIDERS[pid].name;
   } else {
@@ -11817,7 +11820,8 @@ sendMessage = async function() {
   const rawText = inp.value.trim();
   if ((!rawText && !attachments.length) || isStreaming) return;
 
-  const key = getActiveKey();
+  // BUG FIX: Fall back to settings.groqKey for users who saved key via old Settings flow
+  const key = getActiveKey() || settings.groqKey;
   if (!key) {
     showToast('⚠️ Add your Groq API key in Settings → Providers to start chatting');
     openPanel('settings');
@@ -11827,6 +11831,9 @@ sendMessage = async function() {
 
   // Sync groqKey so existing code that reads it still works
   if (providerSettings._active === 'groq') settings.groqKey = key;
+  // Also sync into providerSettings so getActiveKey() works going forward
+  if (!providerSettings.groq) providerSettings.groq = {};
+  if (!providerSettings.groq.key && key) providerSettings.groq.key = key;
 
   if (!currentConvoId) {
     currentConvoId = 'c_' + Date.now();
