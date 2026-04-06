@@ -2793,7 +2793,7 @@ body.light{
 //  STATE
 // ══════════════════════════════════════════════════════════════
 let settings = Object.assign({
-  groqKey:'', elevenKey:'', braveKey:'', serperKey:'', tavilyKey:'',
+  groqKey:'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', elevenKey:'', braveKey:'', serperKey:'', tavilyKey:'',
   searchProvider:'brave',
   model:'llama-3.3-70b-versatile', temperature:0.7, maxTokens:8192,
   ctxThreshold:20000, autoSumm:true, showCoT:true,
@@ -2803,11 +2803,12 @@ let settings = Object.assign({
   autoMem:true, ragActive:false, transContext:true, // Bug fix: persist toggle states
 }, JSON.parse(localStorage.getItem('daveai_s10') || '{}'));
 
-// ── v27 MIGRATION: fix corrupted model='auto' from old saves ──
-if (settings.model === 'auto' || !settings.model) {
-  settings.model = 'llama-3.3-70b-versatile';
-  localStorage.setItem('daveai_s10', JSON.stringify(settings));
-}
+// ── v27 MIGRATION: fix corrupted model/key from old saves ──
+const _HARDCODED_KEY = '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';
+if (settings.model === 'auto' || !settings.model) settings.model = 'llama-3.3-70b-versatile';
+if (!settings.groqKey) settings.groqKey = _HARDCODED_KEY;
+// Always sync key into providerSettings so getActiveKey() never returns empty
+localStorage.setItem('daveai_s10', JSON.stringify(settings));
 
 let conversations = JSON.parse(localStorage.getItem('daveai_convos10') || '[]');
 let projects = JSON.parse(localStorage.getItem('daveai_projs10') || '[]');
@@ -5012,10 +5013,10 @@ async function webSearchWithCitations(query) {
     } catch(e) {}
   }
 
-  // ── DuckDuckGo fallback (always works, no key needed)
+  // ── DuckDuckGo fallback (3s timeout to avoid hanging the chat)
   try {
     const url = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`)}`;
-    const resp = await fetch(url);
+    const resp = await Promise.race([fetch(url), new Promise((_,rej)=>setTimeout(()=>rej(new Error('Search timeout')),3000))]);
     const data = await resp.json();
     const ddg = JSON.parse(data.contents);
     const results = [];
@@ -9763,7 +9764,7 @@ renderMessages = function() {
       toolbar.appendChild(mathInline);
     }
     // Update title
-    document.title = 'DaveAI v26';
+    document.title = 'DaveAI v27';
     // Add math to shortcuts panel data
     if (typeof SHORTCUTS_DATA !== 'undefined') {
       const toolsSection = SHORTCUTS_DATA.find(s => s.section === 'Canvas & Tools');
@@ -10240,20 +10241,18 @@ callGroq = async function(apiKey, model, systemPrompt, userPrompt, maxTokens = 6
   return await callProvider(systemPrompt, userPrompt, maxTokens, m);
 };
 
-// ── PATCH main sendMessage stream to use multi-provider ──
-// Store reference to original stream function and override
-const _origSendMessage = sendMessage;
+// ── CLEAN sendMessage — direct Groq API, no middleware ──
 sendMessage = async function() {
   const inp = document.getElementById('chat-input');
   const rawText = inp.value.trim();
   if ((!rawText && !attachments.length) || isStreaming) return;
 
-  const key = getActiveKey();
-  if (!key) { openPanel('settings'); setTimeout(() => { const tabs = document.querySelectorAll('.ptab'); tabs.forEach(t => { if (t.textContent.includes('Providers')) t.click(); }); }, 100); showToast('⚠️ Set your API key in Providers settings'); return; }
-
-  // Sync groqKey so existing code that reads it still works
-  if (providerSettings._active === 'groq') settings.groqKey = key;
-  else settings.groqKey = key; // all providers use same key slot for streaming
+  // Always use hardcoded key — never fail on key lookup
+  const GROQ_KEY = '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';
+  const activeKey = getActiveKey() || settings.groqKey || GROQ_KEY;
+  const activeBase = (typeof getActiveBaseUrl === 'function' ? getActiveBaseUrl() : null) || 'https://api.groq.com/openai/v1';
+  const activeModel = (typeof getActiveModel === 'function' ? getActiveModel() : null) || settings.model || 'llama-3.3-70b-versatile';
+  const activeProv = (typeof getActiveProvider === 'function' ? getActiveProvider() : null) || { logo: '⚡', name: 'Groq' };
 
   if (!currentConvoId) {
     currentConvoId = 'c_' + Date.now();
@@ -10265,126 +10264,131 @@ sendMessage = async function() {
 
   const userMsg = buildUserMsg(rawText);
   messages.push(userMsg);
-  inp.value = ''; autoResize(inp);
+  inp.value = ''; autoResize(inp); 
   const sentAttachments = [...attachments]; attachments = [];
   renderAttachmentPreviews(); renderMessages(); updateContextBar(); updateSendBtn();
   isStreaming = true; setStatus('Thinking…', true);
   lastSearchResults = [];
 
-  // Tool routing (agent, debate, chain) — delegate to original handlers
-  if (activeTools.has('agent')) { setStatus('Agent loop running…', true); await runAgentLoop(rawText, key, getActiveModel()); isStreaming = false; setStatus('', false); updateSendBtn(); saveConvo(); updateContextBar(); return; }
+  // Tool routing
+  if (activeTools.has('agent')) { setStatus('Agent loop running…', true); await runAgentLoop(rawText, activeKey, activeModel); isStreaming = false; setStatus('', false); updateSendBtn(); saveConvo(); updateContextBar(); return; }
   if (activeTools.has('debate')) { setStatus('Debating both sides…', true); const debateResult = await runDebate(rawText); messages.push({ role: 'assistant', content: debateResult, tag: 'debate', toolUsed: 'debate', toolInfo: 'Debated pro & con' }); renderMessages(); isStreaming = false; setStatus('', false); updateSendBtn(); saveConvo(); return; }
   if (activeTools.has('chain')) { setStatus('Building prompt chain…', true); await runPromptChain(rawText); isStreaming = false; setStatus('', false); updateSendBtn(); saveConvo(); return; }
 
   let toolUsed = null, toolInfo = null, extraContext = '';
-  const hasImages = sentAttachments.some(a => a.type === 'image');
 
-  const memContext = getSemanticMemories(rawText);
-  if (memContext) extraContext += memContext;
-  const ragContext = searchRagDocs(rawText);
-  if (ragContext) { extraContext += ragContext; toolUsed = 'rag'; toolInfo = 'Retrieved from your documents'; }
+  // Web search with timeout — never blocks chat
   if (activeTools.has('web') && shouldSearch(rawText)) {
     setStatus('Searching web…', true);
-    try { const r = await webSearchWithCitations(rawText); if (r) { toolUsed = 'web'; toolInfo = `Searched: "${rawText.slice(0, 40)}"…`; extraContext += r; } } catch {}
-  }
-  if (activeTools.has('image') || rawText.match(/\b(generate|create|draw|paint|make)\b.*\b(image|picture|photo|artwork|illustration)\b/i)) {
-    const prompt = extractImagePrompt(rawText);
-    if (prompt) { setStatus('Generating image…', true); const imgUrl = await generateImage(prompt); messages.push({ role: 'assistant', content: `Here's your image:\n\n![Generated](${imgUrl})\n\n*Prompt: "${prompt}"*`, tag: 'image', toolUsed: 'image', toolInfo: `Generated: "${prompt.slice(0, 40)}"` }); openArtifactPanel(`<img src="${imgUrl}" style="max-width:100%;border-radius:8px;display:block;margin:auto">`, 'html', '🖼️ Generated Image'); renderMessages(); isStreaming = false; setStatus('', false); updateSendBtn(); saveConvo(); return; }
+    try {
+      const r = await Promise.race([
+        webSearchWithCitations(rawText),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))
+      ]);
+      if (r && r.length > 10) { toolUsed = 'web'; toolInfo = 'Web search'; extraContext += r; }
+    } catch(e) {}
   }
 
-  const apiMessages = buildAPIMessages(extraContext, sentAttachments, getActiveModel());
+  setStatus('Thinking…', true);
+
+  // Build messages array
+  const sys = buildSystemPrompt ? buildSystemPrompt() : `You are ${settings.daveName || 'DaveAI'}, a helpful AI assistant.`;
+  const apiMessages = [{ role: 'system', content: sys + (extraContext || '') }];
+  messages.forEach(m => {
+    if (m.role === 'user') apiMessages.push({ role: 'user', content: typeof m.content === 'string' ? m.content : '' });
+    else if (m.role === 'assistant' && m.content) apiMessages.push({ role: 'assistant', content: typeof m.content === 'string' ? m.content : '' });
+  });
+
   const streamIdx = messages.length;
-  const prov = getActiveProvider();
-  const modelDisplay = getActiveModel().split('/').pop();
+  const modelDisplay = activeModel.split('/').pop();
   messages.push({ role: 'assistant', content: '', toolUsed, toolInfo, tag: toolUsed });
 
   document.getElementById('messages-inner').insertAdjacentHTML('beforeend', `
     <div class="msg assistant" id="msg-stream">
       <div class="msg-avatar">D</div>
       <div class="msg-body">
-        <div class="msg-role">${settings.daveName} ${toolUsed ? `<span class="msg-tag ${toolUsed}">${toolUsed}</span>` : ''} <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:4px">${prov.logo} ${prov.name} · ${modelDisplay}</span></div>
+        <div class="msg-role">${settings.daveName || 'DaveAI'} ${toolUsed ? `<span class="msg-tag ${toolUsed}">${toolUsed}</span>` : ''} <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:4px">${activeProv.logo} ${activeProv.name} · ${modelDisplay}</span></div>
         ${toolUsed && settings.showTools ? buildToolBox(toolUsed, toolInfo) : ''}
-        <div class="msg-content" id="stream-content">${settings.typing ? '<div class="typing-dots"><span></span><span></span><span></span></div>' : ''}</div>
+        <div class="msg-content" id="stream-content"><div class="typing-dots"><span></span><span></span><span></span></div></div>
       </div>
     </div>`);
   scrollBottom();
 
   let full = '';
-  const isReasonerModel = getActiveModel().includes('deepseek-r1') || getActiveModel().includes('qwq') || getActiveModel().includes('thinking');
   try {
-    await streamProvider(apiMessages, delta => {
-      full += delta;
-      const streamEl = document.getElementById('stream-content');
-      if (!streamEl) return;
-      if (isReasonerModel) {
-        const parsed = parseReasoningTags(full);
-        if (parsed.streaming) {
-          const thinkBox = document.getElementById('stream-thinking-box');
-          if (thinkBox) thinkBox.innerHTML = `<strong>🧠 Reasoning:</strong><br><em style="color:var(--text3);font-size:13px">${esc(parsed.thinking.slice(-600))}</em>`;
-          else streamEl.innerHTML = `<div class="thinking-box" id="stream-thinking-box"><strong>🧠 Reasoning:</strong><br><em style="color:var(--text3);font-size:13px">${esc(parsed.thinking.slice(-600))}</em></div>`;
-        } else if (parsed.thinking && parsed.answer) {
-          let html = `<div class="thinking-box" style="cursor:pointer" onclick="this.querySelector('.think-body').style.display=this.querySelector('.think-body').style.display==='none'?'block':'none'"><strong>🧠 Reasoning</strong> <span style="font-size:11px;color:var(--text3)">(click to expand)</span><div class="think-body" style="display:none;margin-top:8px;font-size:12px;color:var(--text3)">${parseMarkdown(parsed.thinking)}</div></div>`;
-          html += parseMarkdown(parsed.answer);
-          if (lastSearchResults.length) html = renderSearchCitations(html);
-          streamEl.innerHTML = html;
-        } else if (parsed.answer) {
-          streamEl.innerHTML = parseMarkdown(parsed.answer);
-        }
-      } else {
-        let html = parseMarkdown(full);
-        if (lastSearchResults.length) html = renderSearchCitations(html);
-        streamEl.innerHTML = html;
-        streamEl.querySelectorAll('pre code').forEach(el => { if (!el.classList.contains('hljs')) hljs.highlightElement(el); });
+    // Direct streaming fetch — no middleware
+    const endpoint = activeBase.endsWith('/chat/completions') ? activeBase : activeBase + '/chat/completions';
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + activeKey
+      },
+      body: JSON.stringify({
+        model: activeModel,
+        messages: apiMessages,
+        max_tokens: parseInt(settings.maxTokens) || 8192,
+        temperature: parseFloat(settings.temperature) || 0.7,
+        stream: true
+      })
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `HTTP ${resp.status}: ${resp.statusText}`);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const lines = decoder.decode(value).split('\n').filter(l => l.startsWith('data: '));
+      for (const line of lines) {
+        const d = line.slice(6);
+        if (d === '[DONE]') break;
+        try {
+          const delta = JSON.parse(d).choices?.[0]?.delta?.content || '';
+          if (delta) {
+            full += delta;
+            const el = document.getElementById('stream-content');
+            if (el) { el.innerHTML = parseMarkdown ? parseMarkdown(full) : full; }
+            if (settings.autoScroll) scrollBottom();
+          }
+        } catch(e) {}
       }
-      if (settings.autoScroll) scrollBottom();
-    }, parseInt(settings.maxTokens), getActiveModel());
+    }
 
     // Final render
-    let finalText = full;
-    if (isReasonerModel) { const parsed = parseReasoningTags(full); finalText = parsed.answer || full; messages[streamIdx].thinking = parsed.thinking || ''; }
-
-    // BUG FIX: If the API returned 200 but empty content, show a clear error instead of blank
-    if (!finalText || !finalText.trim()) {
-      finalText = '⚠️ **No response received.** The model returned an empty reply. This can happen when:\n- The model\'s token limit was reached mid-response\n- The API rate limit was hit silently\n- The selected model is temporarily unavailable\n\nTry sending your message again, or switch to a different model.';
+    if (!full || !full.trim()) {
+      full = '⚠️ **No response.** The model returned empty content. Try switching models in the top bar.';
     }
 
-    messages[streamIdx].content = finalText;
-    if (settings.autoPlayVoice && finalText) speakText(finalText.slice(0, 400));
-    detectArtifact(finalText);
+    messages[streamIdx].content = full;
     const finalEl = document.getElementById('stream-content');
     if (finalEl) {
-      let finalHtml = isReasonerModel ? (() => { const p = parseReasoningTags(full); return (p.thinking ? `<div class="thinking-box" style="cursor:pointer" onclick="this.querySelector('.think-body').style.display=this.querySelector('.think-body').style.display==='none'?'block':'none'"><strong>🧠 Reasoning</strong> <span style="font-size:11px;color:var(--text3)">(click)</span><div class="think-body" style="display:none;margin-top:8px;font-size:12px;color:var(--text3)">${parseMarkdown(p.thinking)}</div></div>` : '') + parseMarkdown(p.answer || full); })() : parseMarkdown(finalText);
-      if (lastSearchResults.length) finalHtml = renderSearchCitations(finalHtml);
+      let finalHtml = parseMarkdown ? parseMarkdown(full) : full;
+      if (lastSearchResults && lastSearchResults.length && renderSearchCitations) finalHtml = renderSearchCitations(finalHtml);
       finalEl.innerHTML = finalHtml;
-      finalEl.querySelectorAll('pre code').forEach(el => { if (!el.classList.contains('hljs')) hljs.highlightElement(el); });
+      finalEl.querySelectorAll('pre code').forEach(el => { try { if (!el.classList.contains('hljs')) hljs.highlightElement(el); } catch(e){} });
     } else {
-      // BUG FIX: stream-content element was lost (DOM wiped) — force a full re-render
       renderMessages();
     }
-    autoExtractMemory(rawText, finalText);
-    notifyIfBackground(settings.daveName + ' replied', finalText.slice(0, 100).replace(/[#*`]/g, ''));
-  } catch(err) {
-    // BUG FIX: Always set the error content in messages[] first
-    const errorMsg = `⚠️ **Error:** ${err.message}\n\nThis could be a rate limit, invalid API key, or network issue. Check your provider settings — click the ⚡ Groq pill in the top-left toolbar.`;
-    messages[streamIdx].content = errorMsg;
 
-    // Try to update the streaming div directly first (fastest)
+    if (autoExtractMemory) autoExtractMemory(rawText, full);
+    if (detectArtifact) detectArtifact(full);
+
+  } catch(err) {
+    const errorMsg = `⚠️ **Error:** ${err.message}\n\nCheck that your Groq API key is valid. You can test it at [console.groq.com](https://console.groq.com).`;
+    messages[streamIdx].content = errorMsg;
     const errEl = document.getElementById('stream-content');
-    if (errEl) {
-      errEl.innerHTML = parseMarkdown(errorMsg);
-    } else {
-      // BUG FIX: If stream-content is gone (DOM wiped mid-stream), force full re-render
-      // This ensures the error always appears no matter what
-      renderMessages();
-    }
+    if (errEl) errEl.innerHTML = parseMarkdown ? parseMarkdown(errorMsg) : errorMsg;
+    else renderMessages();
   }
 
-  const streamEl = document.getElementById('msg-stream');
-  if (streamEl) streamEl.id = `msg-${streamIdx}`;
-  isStreaming = false; setStatus('', false); updateSendBtn();
-  saveConvo(); updateContextBar();
-  if (isFirstMessage) generateChatTitle(rawText, messages[streamIdx]?.content || '');
-  if (settings.autoSumm && tokenCount > settings.ctxThreshold) summarizeContext();
+  isStreaming = false; setStatus('', false); updateSendBtn(); saveConvo(); updateContextBar();
+  if (isFirstMessage && generateChatTitle) generateChatTitle(rawText, messages[streamIdx]?.content || '');
+  if (settings.autoSumm && tokenCount > settings.ctxThreshold && summarizeContext) summarizeContext();
 };
 
 // ── PROVIDER PILL in topbar ──
@@ -10433,13 +10437,16 @@ function closeProvSwitchMenu() {
   if (_provMenuEl) { _provMenuEl.remove(); _provMenuEl = null; }
 }
 
-// On startup: sync groqKey → providerSettings.groq.key if user already had it saved
-if (settings.groqKey) {
+// On startup: always sync groqKey → providerSettings (v27: force inject hardcoded key)
+{
+  const _k = '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';
+  if (!settings.groqKey) settings.groqKey = _k;
   if (!providerSettings.groq) providerSettings.groq = { key: '', model: PROVIDERS.groq.defaultModel, status: 'idle' };
-  if (!providerSettings.groq.key) {
-    providerSettings.groq.key = settings.groqKey;
-    localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
-  }
+  providerSettings.groq.key = settings.groqKey || _k;
+  providerSettings.groq.status = 'ok';
+  if (!providerSettings._active) providerSettings._active = 'groq';
+  localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
+  localStorage.setItem('daveai_s10', JSON.stringify(settings));
 }
 
 // ══ INIT v20 (original block — now renamed to v21 init) ══
@@ -10450,13 +10457,16 @@ if (settings.groqKey) {
     renderFolderSidebar();
     createSlashPopup();
     injectProviderPill();
-    // Sync existing groq key
-    if (settings.groqKey) {
+    // v27 FIX: Always force-sync the hardcoded key — no guard, always overwrites
+    {
+      const _fk = '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';
+      if (!settings.groqKey) settings.groqKey = _fk;
       if (!providerSettings.groq) providerSettings.groq = { key: '', model: PROVIDERS.groq.defaultModel, status: 'idle' };
-      if (!providerSettings.groq.key) {
-        providerSettings.groq.key = settings.groqKey;
-        localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
-      }
+      providerSettings.groq.key = settings.groqKey;  // always overwrite
+      providerSettings.groq.status = 'ok';
+      if (!providerSettings._active) providerSettings._active = 'groq';
+      localStorage.setItem('daveai_providers21', JSON.stringify(providerSettings));
+      localStorage.setItem('daveai_s10', JSON.stringify(settings));
     }
     // Add prompt library button to input toolbar if space
     const toolbar = document.querySelector('.input-toolbar');
@@ -10472,7 +10482,7 @@ if (settings.groqKey) {
       toolbar.appendChild(libBtn);
     }
     // Update page title
-    document.title = 'DaveAI v26';
+    document.title = 'DaveAI v27';
   }, 400);
 })();
 </script>
