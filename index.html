@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1986,7 +1985,7 @@ body.light{
           </div>
           <div class="textarea-row">
             <textarea id="chat-input" placeholder="Ask anything…" rows="1"
-              onkeydown="handleKey(event)" oninput="autoResize(this);updateSendBtn()"></textarea>
+              onkeydown="handleKey(event)" oninput="autoResize(this);updateSendBtn()" onfocus="updateSendBtn()"></textarea>
             <div class="input-btns">
               <div class="voice-wave" id="voice-wave"><span></span><span></span><span></span><span></span><span></span></div>
               <label class="input-attach-btn" title="Attach files">
@@ -1996,7 +1995,7 @@ body.light{
               <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="Voice input">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
               </button>
-              <button class="send-btn" id="send-btn" onclick="sendMessage()" disabled>
+              <button class="send-btn" id="send-btn" onclick="sendMessage()">
                 <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
             </div>
@@ -4440,6 +4439,9 @@ function init() {
   }
   // BUG FIX: Enable send button on load if a key is already saved
   updateSendBtn();
+  // DEFERRED: re-run after microtask queue clears to catch any async providerSettings sync
+  setTimeout(updateSendBtn, 0);
+  setTimeout(updateSendBtn, 300);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -6214,7 +6216,8 @@ function updateSendBtn(){
   const hasKey  = !!(getActiveKey() || settings.groqKey);
   const btn     = document.getElementById('send-btn');
   const banner  = document.getElementById('no-key-banner');
-  btn.disabled  = !hasText || isStreaming || !hasKey;
+  // Enable send whenever there is text — sendMessage() handles the no-key toast/redirect itself
+  btn.disabled  = !hasText || isStreaming;
   btn.title     = !hasKey ? 'Add your Groq API key in Settings to start chatting' : '';
   if (banner) banner.style.display = !hasKey ? 'flex' : 'none';
 }
